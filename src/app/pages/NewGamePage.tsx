@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 type GameMode = "competitive" | "collaborative" | null;
 type DeviceMode = "single" | "multiple" | null;
@@ -15,7 +15,6 @@ interface FormData {
 
 export function NewGamePage() {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
     gameMode: null,
     deviceMode: null,
@@ -31,20 +30,6 @@ export function NewGamePage() {
   const handleDeviceModeSelect = (mode: DeviceMode) => {
     setFormData({ ...formData, deviceMode: mode });
     setError(null);
-  };
-
-  const handleNext = () => {
-    if (currentStep === 1 && !formData.gameMode) {
-      setError("Please select a game mode");
-      return;
-    }
-    setError(null);
-    setCurrentStep(currentStep + 1);
-  };
-
-  const handleBack = () => {
-    setError(null);
-    setCurrentStep(currentStep - 1);
   };
 
   const handleSubmit = async () => {
@@ -86,6 +71,8 @@ export function NewGamePage() {
     }
   };
 
+  const allQuestionsAnswered = formData.gameMode && formData.deviceMode;
+
   return (
     <div className="max-w-2xl mx-auto w-full space-y-6">
       <Button
@@ -100,51 +87,49 @@ export function NewGamePage() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Create New Game</h1>
         <p className="text-muted-foreground">
-          Step {currentStep} of 2
+          Answer the questions below to set up your game
         </p>
       </div>
 
-      <Card className="p-6 space-y-6">
-        {currentStep === 1 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">
-              Would you like to play competitively or collaboratively?
-            </h2>
+      <div className="space-y-6">
+        <Card className="p-6 space-y-4">
+          <h2 className="text-xl font-semibold">
+            Would you like to play competitively or collaboratively?
+          </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button
-                onClick={() => handleGameModeSelect("competitive")}
-                className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${
-                  formData.gameMode === "competitive"
-                    ? "border-primary bg-primary/5"
-                    : "border-border"
-                }`}
-              >
-                <h3 className="font-semibold text-lg mb-2">Play to Win</h3>
-                <p className="text-sm text-muted-foreground">
-                  Compete against other players to achieve the highest score
-                </p>
-              </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              onClick={() => handleGameModeSelect("competitive")}
+              className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${
+                formData.gameMode === "competitive"
+                  ? "border-primary bg-primary/5"
+                  : "border-border"
+              }`}
+            >
+              <h3 className="font-semibold text-lg mb-2">Play to Win</h3>
+              <p className="text-sm text-muted-foreground">
+                Compete against other players to achieve the highest score
+              </p>
+            </button>
 
-              <button
-                onClick={() => handleGameModeSelect("collaborative")}
-                className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${
-                  formData.gameMode === "collaborative"
-                    ? "border-primary bg-primary/5"
-                    : "border-border"
-                }`}
-              >
-                <h3 className="font-semibold text-lg mb-2">Play to Build</h3>
-                <p className="text-sm text-muted-foreground">
-                  Work together with others to build a thriving civilization
-                </p>
-              </button>
-            </div>
+            <button
+              onClick={() => handleGameModeSelect("collaborative")}
+              className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${
+                formData.gameMode === "collaborative"
+                  ? "border-primary bg-primary/5"
+                  : "border-border"
+              }`}
+            >
+              <h3 className="font-semibold text-lg mb-2">Play to Build</h3>
+              <p className="text-sm text-muted-foreground">
+                Work together with others to build a thriving civilization
+              </p>
+            </button>
           </div>
-        )}
+        </Card>
 
-        {currentStep === 2 && (
-          <div className="space-y-4">
+        {formData.gameMode && (
+          <Card className="p-6 space-y-4">
             <h2 className="text-xl font-semibold">
               Do you want to play on only this device or have other players join on their own devices?
             </h2>
@@ -178,7 +163,7 @@ export function NewGamePage() {
                 </p>
               </button>
             </div>
-          </div>
+          </Card>
         )}
 
         {error && (
@@ -187,45 +172,25 @@ export function NewGamePage() {
           </Alert>
         )}
 
-        <div className="flex justify-between gap-3">
-          <Button
-            variant="outline"
-            onClick={currentStep === 1 ? () => navigate("/") : handleBack}
-            disabled={isSubmitting}
-          >
-            {currentStep === 1 ? "Cancel" : "Back"}
-          </Button>
-
-          <div className="flex gap-3">
-            {currentStep < 2 && (
-              <Button
-                onClick={handleNext}
-                disabled={!formData.gameMode}
-                className="gap-2"
-              >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            )}
-
-            {currentStep === 2 && (
-              <Button
-                onClick={handleSubmit}
-                disabled={!formData.deviceMode || isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Game"
-                )}
-              </Button>
-            )}
+        {allQuestionsAnswered && (
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              size="lg"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Game"
+              )}
+            </Button>
           </div>
-        </div>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }
