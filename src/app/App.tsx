@@ -17,10 +17,7 @@ export default function App() {
             </h1>
 
             <p className="text-lg md:text-xl leading-relaxed text-muted-foreground max-w-2xl mx-auto">
-              A text-based strategy game where you guide civilizations through the ages.
-              Make critical decisions, manage resources, and shape the course of history
-              from ancient times to the modern world. Every choice matters as you navigate
-              the challenges of building and sustaining a thriving society.
+              Test your knowledge of history! Can you put these events in order?
             </p>
           </div>
         </main>
