@@ -42,8 +42,8 @@ export function NewGamePage() {
     setError(null);
 
     try {
-      // TODO: Replace with actual API endpoint
-      const response = await fetch("/api/games", {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const response = await fetch(`${apiUrl}/games`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -58,7 +58,7 @@ export function NewGamePage() {
 
       if (!response.ok) {
         // Handle validation errors from server
-        setError(data.error || "Failed to create game");
+        setError(data.error || "Failed to create game. Please try again.");
         setIsSubmitting(false);
         return;
       }
@@ -66,7 +66,8 @@ export function NewGamePage() {
       // Success - navigate to play page
       navigate(`/play/${data.gameId}`);
     } catch (err) {
-      setError("Network error. Please try again.");
+      // Network error - server not available
+      setError("Server is not available. Please try again later.");
       setIsSubmitting(false);
     }
   };
