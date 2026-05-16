@@ -3,7 +3,8 @@ import { useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, X } from "lucide-react";
+import { Input } from "../components/ui/input";
 
 type GameMode = "competitive" | "collaborative" | null;
 type DeviceMode = "single" | "multiple" | null;
@@ -11,6 +12,8 @@ type DeviceMode = "single" | "multiple" | null;
 interface FormData {
   gameMode: GameMode;
   deviceMode: DeviceMode;
+  playerNames: string[];
+  isSolo: boolean;
 }
 
 export function NewGamePage() {
@@ -18,6 +21,8 @@ export function NewGamePage() {
   const [formData, setFormData] = useState<FormData>({
     gameMode: null,
     deviceMode: null,
+    playerNames: [""],
+    isSolo: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,10 +37,50 @@ export function NewGamePage() {
     setError(null);
   };
 
+  const handleSoloSelect = () => {
+    setFormData({ ...formData, isSolo: true, playerNames: [] });
+    setError(null);
+  };
+
+  const handleMultiplayerSelect = () => {
+    setFormData({ ...formData, isSolo: false, playerNames: [""] });
+    setError(null);
+  };
+
+  const handlePlayerNameChange = (index: number, value: string) => {
+    const newPlayerNames = [...formData.playerNames];
+    newPlayerNames[index] = value;
+
+    // If this is the last input and it's filled, add a new blank one (up to 20 players)
+    if (index === newPlayerNames.length - 1 && value.trim() && newPlayerNames.length < 20) {
+      newPlayerNames.push("");
+    }
+
+    setFormData({ ...formData, playerNames: newPlayerNames });
+  };
+
+  const handleRemovePlayer = (index: number) => {
+    const newPlayerNames = formData.playerNames.filter((_, i) => i !== index);
+    // Ensure at least one input remains
+    if (newPlayerNames.length === 0) {
+      newPlayerNames.push("");
+    }
+    setFormData({ ...formData, playerNames: newPlayerNames });
+  };
+
   const handleSubmit = async () => {
     if (!formData.gameMode || !formData.deviceMode) {
       setError("Please complete all questions");
       return;
+    }
+
+    // Validate player names for single device mode
+    if (formData.deviceMode === "single" && !formData.isSolo) {
+      const filledNames = formData.playerNames.filter(name => name.trim());
+      if (filledNames.length < 2) {
+        setError("Please enter at least 2 player names or select solo mode");
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -43,6 +88,12 @@ export function NewGamePage() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+      // Filter out empty player names
+      const playerNames = formData.isSolo
+        ? []
+        : formData.playerNames.filter(name => name.trim());
+
       const response = await fetch(`${apiUrl}/games`, {
         method: "POST",
         headers: {
@@ -51,6 +102,7 @@ export function NewGamePage() {
         body: JSON.stringify({
           gameMode: formData.gameMode,
           deviceMode: formData.deviceMode,
+          playerNames,
         }),
       });
 
@@ -72,7 +124,12 @@ export function NewGamePage() {
     }
   };
 
-  const allQuestionsAnswered = formData.gameMode && formData.deviceMode;
+  const allQuestionsAnswered =
+    formData.gameMode &&
+    formData.deviceMode &&
+    (formData.deviceMode === "multiple" ||
+     formData.isSolo ||
+     formData.playerNames.filter(name => name.trim()).length >= 2);
 
   return (
     <div className="max-w-2xl mx-auto w-full space-y-6">
@@ -163,6 +220,77 @@ export function NewGamePage() {
                   Players will join from their own devices
                 </p>
               </button>
+            </div>
+          </Card>
+        )}
+
+        {formData.deviceMode === "single" && (
+          <Card className="p-6 space-y-4">
+            <h2 className="text-xl font-semibold">Who's Playing?</h2>
+
+            <div className="space-y-4">
+              <button
+                onClick={handleSoloSelect}
+                className={`w-full p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${
+                  formData.isSolo
+                    ? "border-primary bg-primary/5"
+                    : "border-border"
+                }`}
+              >
+                <h3 className="font-semibold text-lg mb-2">Just Me - Solo</h3>
+                <p className="text-sm text-muted-foreground">
+                  Play by yourself
+                </p>
+              </button>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleMultiplayerSelect}
+                  className={`w-full p-4 border-2 rounded-lg text-left transition-all hover:border-primary ${
+                    !formData.isSolo && formData.playerNames.length > 0
+                      ? "border-primary bg-primary/5"
+                      : "border-border"
+                  }`}
+                >
+                  <h3 className="font-semibold mb-2">Multiple Players</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Enter player or team names (2-20 players)
+                  </p>
+
+                  {!formData.isSolo && (
+                    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                      {formData.playerNames.map((name, index) => (
+                        <div key={index} className="flex gap-2">
+                          <Input
+                            type="text"
+                            placeholder={`Player ${index + 1}`}
+                            value={name}
+                            onChange={(e) => handlePlayerNameChange(index, e.target.value)}
+                            className="flex-1"
+                            maxLength={50}
+                          />
+                          {formData.playerNames.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemovePlayer(index)}
+                              className="shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      {formData.playerNames.length >= 20 && (
+                        <p className="text-sm text-muted-foreground">
+                          Maximum 20 players reached
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </button>
+              </div>
             </div>
           </Card>
         )}
