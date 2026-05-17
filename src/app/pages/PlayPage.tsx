@@ -73,11 +73,7 @@ export function PlayPage() {
     <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden">
       {/* Desktop: Left Column - Timeline */}
       {/* Mobile Waiting: Stacked section */}
-      <div
-        className={`flex-1 overflow-y-auto p-4 ${
-          isMyTurn ? "lg:flex-1" : ""
-        }`}
-      >
+      <div className={`flex-1 overflow-y-auto p-4 ${isMyTurn ? "lg:flex-1" : ""}`}>
         <div className="mb-4">
           <h2 className="text-xl font-semibold">Timeline</h2>
           <p className="text-sm text-muted-foreground">
@@ -88,14 +84,10 @@ export function PlayPage() {
         {/* Timeline Cards - Placeholder */}
         <div className="space-y-4">
           <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-            <p className="text-center text-muted-foreground">
-              Timeline cards will appear here
-            </p>
+            <p className="text-center text-muted-foreground">Timeline cards will appear here</p>
           </Card>
           <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-            <p className="text-center text-muted-foreground">
-              Event card placeholder
-            </p>
+            <p className="text-center text-muted-foreground">Event card placeholder</p>
           </Card>
         </div>
       </div>
@@ -141,9 +133,7 @@ export function PlayPage() {
 
             {/* Status/Prompt */}
             <div className="bg-muted p-3 rounded-lg">
-              <p className="text-sm font-medium">
-                Waiting for {currentPlayerName} to play...
-              </p>
+              <p className="text-sm font-medium">Waiting for {currentPlayerName} to play...</p>
             </div>
 
             {/* Collaborative Stats or Player List */}
