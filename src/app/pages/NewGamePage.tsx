@@ -104,17 +104,19 @@ export function NewGamePage() {
         }),
       });
 
-      const data = await response.json();
+      const game = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Failed to create game. Please try again.");
+        setError(game.error || "Failed to create game. Please try again.");
         setIsSubmitting(false);
         return;
       }
 
+			console.log('game', game)
+
       // Store game ID in localStorage
-      localStorage.setItem("currentGameId", data.gameId);
-      navigate(`/play/${data.gameId}`);
+      localStorage.setItem("currentGameId", game._id);
+      navigate(`/play/${game._id}`);
     } catch (err) {
       setError("Server is not available. Please try again later.");
       setIsSubmitting(false);
