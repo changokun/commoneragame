@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { ArrowLeft, Loader2, X } from "lucide-react";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Slider } from "../components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Badge } from "../components/ui/badge";
 
 type GameMode = "competitive" | "collaborative" | null;
 type DeviceMode = "single" | "multiple" | null;
@@ -15,7 +19,75 @@ interface FormData {
   playerType: PlayerType;
   deviceMode: DeviceMode;
   playerNames: string[];
+  eventCount: number;
+  errorLimit: number;
+  beginningFrom: string;
+  upThrough: string;
+  geographicLimits: string[];
+  topics: string[];
 }
+
+interface Preset {
+  name: string;
+  eventCount: number;
+  errorLimit: number;
+  beginningFrom: string;
+  upThrough: string;
+  geographicLimits: string[];
+  topics: string[];
+}
+
+const PRESETS: Preset[] = [
+  {
+    name: "Roman Art History",
+    eventCount: 30,
+    errorLimit: 3,
+    beginningFrom: "100 BCE",
+    upThrough: "400 CE",
+    geographicLimits: ["Europe"],
+    topics: ["Rome", "Art", "Architecture"],
+  },
+  {
+    name: "World Wars",
+    eventCount: 50,
+    errorLimit: 5,
+    beginningFrom: "1914",
+    upThrough: "1945",
+    geographicLimits: ["World"],
+    topics: ["WWI", "WWII"],
+  },
+  {
+    name: "Ancient History",
+    eventCount: 40,
+    errorLimit: 3,
+    beginningFrom: "4000 BCE",
+    upThrough: "500 CE",
+    geographicLimits: ["World"],
+    topics: ["Rome"],
+  },
+];
+
+const GEOGRAPHIC_OPTIONS = [
+  "Europe",
+  "Asia",
+  "Pacific",
+  "The Americas",
+  "U.S.A.",
+  "Africa",
+  "World",
+];
+
+const TOPIC_OPTIONS = [
+  "WWI",
+  "WWII",
+  "Art",
+  "Rome",
+  "Food",
+  "Architecture",
+  "Science",
+  "Math",
+  "Astronomy",
+];
 
 export function NewGamePage() {
   const navigate = useNavigate();
@@ -24,9 +96,17 @@ export function NewGamePage() {
     playerType: null,
     deviceMode: null,
     playerNames: [""],
+    eventCount: 30,
+    errorLimit: 3,
+    beginningFrom: "4000 BCE",
+    upThrough: "2026 CE",
+    geographicLimits: [],
+    topics: [],
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableEvents, setAvailableEvents] = useState<number | null>(null);
+  const [isFetchingEvents, setIsFetchingEvents] = useState(false);
 
   const handleGameModeSelect = (mode: GameMode) => {
     setFormData({ ...formData, gameMode: mode });
@@ -61,6 +141,71 @@ export function NewGamePage() {
     }
     setFormData({ ...formData, playerNames: newPlayerNames });
   };
+
+  const handlePresetSelect = (presetName: string) => {
+    const preset = PRESETS.find((p) => p.name === presetName);
+    if (preset) {
+      setFormData({
+        ...formData,
+        eventCount: preset.eventCount,
+        errorLimit: preset.errorLimit,
+        beginningFrom: preset.beginningFrom,
+        upThrough: preset.upThrough,
+        geographicLimits: preset.geographicLimits,
+        topics: preset.topics,
+      });
+    }
+  };
+
+  const toggleGeographicLimit = (geo: string) => {
+    const newLimits = formData.geographicLimits.includes(geo)
+      ? formData.geographicLimits.filter((g) => g !== geo)
+      : [...formData.geographicLimits, geo];
+    setFormData({ ...formData, geographicLimits: newLimits });
+  };
+
+  const toggleTopic = (topic: string) => {
+    const newTopics = formData.topics.includes(topic)
+      ? formData.topics.filter((t) => t !== topic)
+      : [...formData.topics, topic];
+    setFormData({ ...formData, topics: newTopics });
+  };
+
+  // Fetch available events when history settings change
+  useEffect(() => {
+    const fetchAvailableEvents = async () => {
+      setIsFetchingEvents(true);
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const queryParams = new URLSearchParams({
+          beginningFrom: formData.beginningFrom,
+          upThrough: formData.upThrough,
+          geographicLimits: formData.geographicLimits.join(","),
+          topics: formData.topics.join(","),
+        });
+
+        const response = await fetch(`${apiUrl}/events?${queryParams}`);
+        const data = await response.json();
+
+        if (response.ok) {
+          setAvailableEvents(data.count || 0);
+        }
+      } catch (err) {
+        console.error("Failed to fetch available events:", err);
+      } finally {
+        setIsFetchingEvents(false);
+      }
+    };
+
+    // Debounce the API call
+    const timeoutId = setTimeout(fetchAvailableEvents, 500);
+    return () => clearTimeout(timeoutId);
+  }, [
+    formData.beginningFrom,
+    formData.upThrough,
+    formData.geographicLimits,
+    formData.topics,
+  ]);
 
   const handleSubmit = async () => {
     if (!formData.gameMode || !formData.playerType) {
@@ -101,6 +246,12 @@ export function NewGamePage() {
           gameMode: formData.gameMode,
           deviceMode: formData.deviceMode,
           playerNames,
+          eventCount: formData.eventCount,
+          errorLimit: formData.errorLimit,
+          beginningFrom: formData.beginningFrom,
+          upThrough: formData.upThrough,
+          geographicLimits: formData.geographicLimits,
+          topics: formData.topics,
         }),
       });
 
@@ -294,6 +445,145 @@ export function NewGamePage() {
                   Maximum 20 players reached
                 </p>
               )}
+            </div>
+          </Card>
+        )}
+
+        {formData.playerType && (
+          <Card className="p-6 space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold">What history should we cover?</h2>
+              <p className="text-sm text-muted-foreground">
+                Configure the historical scope and difficulty
+              </p>
+            </div>
+
+            {/* Preset Selector */}
+            <div className="space-y-2">
+              <Label>Quick Presets</Label>
+              <Select onValueChange={handlePresetSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a preset (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRESETS.map((preset) => (
+                    <SelectItem key={preset.name} value={preset.name}>
+                      {preset.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Event Count Slider */}
+              <div className="space-y-2">
+                <Label>How many events? ({formData.eventCount})</Label>
+                <Slider
+                  min={10}
+                  max={100}
+                  step={5}
+                  value={[formData.eventCount]}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, eventCount: value[0] })
+                  }
+                />
+              </div>
+
+              {/* Error Limit */}
+              <div className="space-y-2">
+                <Label>Error Limit</Label>
+                <Select
+                  value={formData.errorLimit.toString()}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, errorLimit: parseInt(value) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="2">2</SelectItem>
+                    <SelectItem value="3">3</SelectItem>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="8">8</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Beginning From */}
+              <div className="space-y-2">
+                <Label>Beginning from</Label>
+                <Input
+                  type="text"
+                  value={formData.beginningFrom}
+                  onChange={(e) =>
+                    setFormData({ ...formData, beginningFrom: e.target.value })
+                  }
+                  placeholder="4000 BCE"
+                />
+              </div>
+
+              {/* Up Through */}
+              <div className="space-y-2">
+                <Label>Up through</Label>
+                <Input
+                  type="text"
+                  value={formData.upThrough}
+                  onChange={(e) =>
+                    setFormData({ ...formData, upThrough: e.target.value })
+                  }
+                  placeholder="2026 CE"
+                />
+              </div>
+            </div>
+
+            {/* Geographic Limits */}
+            <div className="space-y-2">
+              <Label>Geographic Limits</Label>
+              <div className="flex flex-wrap gap-2">
+                {GEOGRAPHIC_OPTIONS.map((geo) => (
+                  <Badge
+                    key={geo}
+                    variant={formData.geographicLimits.includes(geo) ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => toggleGeographicLimit(geo)}
+                  >
+                    {geo}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Topics */}
+            <div className="space-y-2">
+              <Label>Topics</Label>
+              <div className="flex flex-wrap gap-2">
+                {TOPIC_OPTIONS.map((topic) => (
+                  <Badge
+                    key={topic}
+                    variant={formData.topics.includes(topic) ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => toggleTopic(topic)}
+                  >
+                    {topic}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Available Events Info */}
+            <div className="bg-muted p-3 rounded-lg">
+              <p className="text-sm font-medium">
+                {isFetchingEvents ? (
+                  "Checking available events..."
+                ) : availableEvents !== null ? (
+                  `Available events with these filters: ${availableEvents}`
+                ) : (
+                  "Enter filter criteria to see available events"
+                )}
+              </p>
             </div>
           </Card>
         )}
