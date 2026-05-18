@@ -13,7 +13,7 @@ interface GameState {
     turnOrder: string;
   };
   state: {
-    timeline: any[];
+    timelineCollaborative: any[];
     currentTurn: number;
     currentEventIndex: number;
     agreedEvents: any[];
@@ -131,6 +131,8 @@ export function PlayPage() {
   const isCollaborative = gameState.gameMode === "collaborative";
   const currentPlayerName = gameState.playerNames[gameState.state.currentTurn] || "Player";
 
+	console.log('gameState', gameState)
+
   return (
     <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden">
       {/* Desktop: Left Column - Timeline */}
@@ -205,7 +207,7 @@ export function PlayPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Timeline Length:</span>
-                    <span className="font-medium">{gameState.state.timeline.length}</span>
+                    <span className="font-medium">{gameState.state.timelineCollaborative.length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Remaining Events:</span>
