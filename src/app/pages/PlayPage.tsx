@@ -51,7 +51,7 @@ export function PlayPage() {
     // Fetch game state if we have a game ID
     const fetchGameState = async (id: string) => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era/';
         const response = await fetch(`${apiUrl}/games/${id}`);
         const data = await response.json();
         setGameState(data);

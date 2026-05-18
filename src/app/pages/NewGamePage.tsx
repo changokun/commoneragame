@@ -176,7 +176,7 @@ export function NewGamePage() {
     const fetchAvailableEvents = async () => {
       setIsFetchingEvents(true);
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era/';
         const queryParams = new URLSearchParams({
           beginningFrom: formData.beginningFrom,
           upThrough: formData.upThrough,
@@ -231,7 +231,7 @@ export function NewGamePage() {
     setError(null);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era/';
 
       const playerNames = formData.playerType === "justMe"
         ? []

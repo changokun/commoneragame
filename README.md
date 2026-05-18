@@ -21,7 +21,7 @@ VITE_API_URL=http://localhost:3000
 
 For production, set:
 ```
-VITE_API_URL=https://api.commoneragame.com
+VITE_API_URL=https://game-phase.sarumino.com/common-era/
 ```
 
 ## Development
