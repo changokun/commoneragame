@@ -19,20 +19,20 @@ interface FormData {
   playerType: PlayerType;
   deviceMode: DeviceMode;
   playerNames: string[];
-  eventCount: number;
+  maxEvents: number;
   errorLimit: number;
-  beginningFrom: string;
-  upThrough: string;
+  from: string;
+  to: string;
   geographicLimits: string[];
   topics: string[];
 }
 
 interface Preset {
   name: string;
-  eventCount: number;
+  maxEvents: number;
   errorLimit: number;
-  beginningFrom: string;
-  upThrough: string;
+  from: string;
+  to: string;
   geographicLimits: string[];
   topics: string[];
 }
@@ -40,28 +40,28 @@ interface Preset {
 const PRESETS: Preset[] = [
   {
     name: "Roman Art History",
-    eventCount: 30,
+    maxEvents: 30,
     errorLimit: 3,
-    beginningFrom: "100 BCE",
-    upThrough: "400 CE",
+    from: "100 BCE",
+    to: "400 CE",
     geographicLimits: ["Europe"],
     topics: ["Rome", "Art", "Architecture"],
   },
   {
     name: "World Wars",
-    eventCount: 50,
+    maxEvents: 50,
     errorLimit: 5,
-    beginningFrom: "1914",
-    upThrough: "1945",
+    from: "1914",
+    to: "1945",
     geographicLimits: ["World"],
     topics: ["WWI", "WWII"],
   },
   {
     name: "Ancient History",
-    eventCount: 40,
+    maxEvents: 40,
     errorLimit: 3,
-    beginningFrom: "4000 BCE",
-    upThrough: "500 CE",
+    from: "4000 BCE",
+    to: "500 CE",
     geographicLimits: ["World"],
     topics: ["Rome"],
   },
@@ -96,10 +96,10 @@ export function NewGamePage() {
     playerType: null,
     deviceMode: null,
     playerNames: [""],
-    eventCount: 30,
+    maxEvents: 30,
     errorLimit: 3,
-    beginningFrom: "4000 BCE",
-    upThrough: "2026 CE",
+    from: "4000 BCE",
+    to: "2026 CE",
     geographicLimits: [],
     topics: [],
   });
@@ -114,7 +114,12 @@ export function NewGamePage() {
   };
 
   const handlePlayerTypeSelect = (playerType: PlayerType) => {
-    setFormData({ ...formData, playerType, deviceMode: null, playerNames: [""] });
+		if(playerType === 'justMe') {
+			setFormData({ ...formData, playerType, playerNames: [""], deviceMode: 'single' });
+		} else {
+			setFormData({ ...formData, playerType, playerNames: [""] });
+		}
+
     setError(null);
   };
 
@@ -147,10 +152,10 @@ export function NewGamePage() {
     if (preset) {
       setFormData({
         ...formData,
-        eventCount: preset.eventCount,
+        maxEvents: preset.maxEvents,
         errorLimit: preset.errorLimit,
-        beginningFrom: preset.beginningFrom,
-        upThrough: preset.upThrough,
+        from: preset.from,
+        to: preset.to,
         geographicLimits: preset.geographicLimits,
         topics: preset.topics,
       });
@@ -177,15 +182,21 @@ export function NewGamePage() {
       setIsFetchingEvents(true);
       try {
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-        const queryParams = new URLSearchParams({
-          beginningFrom: formData.beginningFrom,
-          upThrough: formData.upThrough,
-          geographicLimits: formData.geographicLimits.join(","),
-          topics: formData.topics.join(","),
-        });
 
-        const response = await fetch(`${apiUrl}/events?${queryParams}`);
+        const response = await fetch(`${apiUrl}/stack`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: formData.from,
+            to: formData.to,
+            geographicLimits: formData.geographicLimits,
+            topics: formData.topics,
+          }),
+        });
         const data = await response.json();
+				console.log('count data', data)
 
         if (response.ok) {
           setAvailableEvents(data.count || 0);
@@ -201,8 +212,8 @@ export function NewGamePage() {
     const timeoutId = setTimeout(fetchAvailableEvents, 500);
     return () => clearTimeout(timeoutId);
   }, [
-    formData.beginningFrom,
-    formData.upThrough,
+    formData.from,
+    formData.to,
     formData.geographicLimits,
     formData.topics,
   ]);
@@ -246,10 +257,10 @@ export function NewGamePage() {
           gameMode: formData.gameMode,
           deviceMode: formData.deviceMode,
           playerNames,
-          eventCount: formData.eventCount,
+          maxEvents: formData.maxEvents,
           errorLimit: formData.errorLimit,
-          beginningFrom: formData.beginningFrom,
-          upThrough: formData.upThrough,
+          from: formData.from,
+          to: formData.to,
           geographicLimits: formData.geographicLimits,
           topics: formData.topics,
         }),
@@ -480,14 +491,14 @@ export function NewGamePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Event Count Slider */}
               <div className="space-y-2">
-                <Label>How many events? ({formData.eventCount})</Label>
+                <Label>How many events? ({formData.maxEvents})</Label>
                 <Slider
                   min={10}
                   max={100}
                   step={5}
-                  value={[formData.eventCount]}
+                  value={[formData.maxEvents]}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, eventCount: value[0] })
+                    setFormData({ ...formData, maxEvents: value[0] })
                   }
                 />
               </div>
@@ -519,9 +530,9 @@ export function NewGamePage() {
                 <Label>Beginning from</Label>
                 <Input
                   type="text"
-                  value={formData.beginningFrom}
+                  value={formData.from}
                   onChange={(e) =>
-                    setFormData({ ...formData, beginningFrom: e.target.value })
+                    setFormData({ ...formData, from: e.target.value })
                   }
                   placeholder="4000 BCE"
                 />
@@ -532,9 +543,9 @@ export function NewGamePage() {
                 <Label>Up through</Label>
                 <Input
                   type="text"
-                  value={formData.upThrough}
+                  value={formData.to}
                   onChange={(e) =>
-                    setFormData({ ...formData, upThrough: e.target.value })
+                    setFormData({ ...formData, to: e.target.value })
                   }
                   placeholder="2026 CE"
                 />
