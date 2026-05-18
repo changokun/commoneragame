@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Settings, PlusCircle, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+import { Timeline } from "../components/Timeline";
 
 interface GameState {
   gameMode: "competitive" | "collaborative";
@@ -31,6 +32,8 @@ export function PlayPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [activeCard, setActiveCard] = useState<any>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [drawnCard, setDrawnCard] = useState<any>(null);
 
   useEffect(() => {
     // Check for game ID in URL params or localStorage
@@ -131,39 +134,79 @@ export function PlayPage() {
   const isCollaborative = gameState.gameMode === "collaborative";
   const currentPlayerName = gameState.playerNames[gameState.state.currentTurn] || "Player";
 
+  const handleDrawCard = async () => {
+    if (!gameId) return;
+
+    setIsPaused(true);
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
+      const data = await response.json();
+
+      if (response.ok && Array.isArray(data) && data.length > 0) {
+				// todo also add this to the localStorage cache.
+        setDrawnCard(data[0]);
+      } else {
+        console.error("Unexpected response from draw endpoint:", data);
+        setIsPaused(false);
+      }
+    } catch (err) {
+      console.error("Failed to draw card:", err);
+      setIsPaused(false);
+    }
+  };
+
 	console.log('gameState', gameState)
 
   return (
-    <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden">
+    <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden relative">
+      {/* Pause overlay - dims/disables non-timeline areas when paused */}
+      {isPaused && (
+        <div className="absolute inset-0 bg-black/20 z-10 pointer-events-auto lg:pointer-events-none" />
+      )}
+
       {/* Desktop: Left Column - Timeline */}
       {/* Mobile Waiting: Stacked section */}
-      <div className={`flex-1 overflow-y-auto p-4 ${isMyTurn ? "lg:flex-1" : ""}`}>
-        <div className="mb-4">
+      <div className={`flex-1 flex flex-col ${isMyTurn ? "lg:flex-1" : ""} relative z-20`}>
+        <div className="p-4 pb-0">
           <h2 className="text-xl font-semibold">Timeline</h2>
           <p className="text-sm text-muted-foreground">
             {isCollaborative ? "Shared Timeline" : "Your Timeline"}
           </p>
         </div>
 
-        {/* Timeline Cards - Placeholder */}
-        <div className="space-y-4">
-          <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-            <p className="text-center text-muted-foreground">Timeline cards will appear here</p>
-          </Card>
-          <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-            <p className="text-center text-muted-foreground">Event card placeholder</p>
-          </Card>
+        {/* Timeline Cards - scrollable container */}
+        <div className="flex-1 overflow-y-auto p-4 pt-0">
+          <Timeline events={gameState.state.timelineCollaborative} gameId={gameId} />
         </div>
+
+        {/* Drawn Card - absolutely positioned over right middle of timeline */}
+        {drawnCard && (
+          <Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
+            <div className="p-4">
+              <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>{drawnCard.title || drawnCard.name || "Event"}</h3>
+              {drawnCard.description && (
+                <p className="text-sm mt-2">{drawnCard.description}</p>
+              )}
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Desktop: Middle Column - Draw + Incorrect Stack */}
       {/* Mobile Waiting: Stacked section */}
       {!isMyTurn && (
-        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border p-4 overflow-y-auto">
+        <div className={`w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border p-4 overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
           <div className="space-y-4">
             {/* Draw Button */}
             <div>
-              <Button className="w-full" size="lg">
+              <Button 
+                className="w-full" 
+                size="lg" 
+                onClick={handleDrawCard}
+                disabled={isPaused}
+              >
                 Draw Event Card
               </Button>
             </div>
@@ -186,7 +229,7 @@ export function PlayPage() {
       {/* Desktop: Right Column - Player Info & Stats */}
       {/* Mobile Waiting: Stacked section */}
       {!isMyTurn && (
-        <div className="w-full lg:w-64 border-t lg:border-t-0 lg:border-l border-border p-4 overflow-y-auto">
+        <div className={`w-full lg:w-64 border-t lg:border-t-0 lg:border-l border-border p-4 overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
           <div className="space-y-4">
             {/* Settings */}
             <div className="flex justify-end">
