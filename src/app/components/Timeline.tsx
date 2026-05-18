@@ -76,7 +76,7 @@ export function Timeline({ events: eventIds, gameId }: TimelineProps) {
       // If there are missing IDs, fetch them in one batch
       if (missingIds.length > 0) {
         try {
-          const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era/';
+          const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
           const idsParam = missingIds.join(",");
           const response = await fetch(`${apiUrl}/events?ids=${idsParam}`);
           const data = await response.json();
