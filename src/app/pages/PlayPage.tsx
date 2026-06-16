@@ -29,6 +29,7 @@ interface GameState {
     currentEventIndex: number;
     agreedEvents: any[];
 		incorrectCardStack: any[];
+    limbo?: string; // Event ID of a drawn card that hasn't been guessed yet
   };
   status: string;
   players: Player[]; // Array of Player objects - source of truth for player data
@@ -45,6 +46,72 @@ export function PlayPage() {
   const [activeCard, setActiveCard] = useState<any>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [drawnCard, setDrawnCard] = useState<any>(null);
+
+  // Helper function to fetch event(s) by ID from cache or API
+  // This consolidates the caching logic used in multiple places
+  // @param eventId - Single event ID string or array of event IDs
+  // @returns Promise resolving to the event object(s) or null if not found
+  const getEventById = async (eventId: string | string[]): Promise<any | any[] | null> => {
+    if (!gameId) return null;
+
+    // Build cache key using the game ID
+    const cacheKey = `CE-${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+    const cachedData: Record<string, any> = JSON.parse(
+      localStorage.getItem(cacheKey) || "{}"
+    );
+
+    // Normalize to array for consistent handling
+    const ids = Array.isArray(eventId) ? eventId : [eventId];
+
+    // Check which events are cached and which need fetching
+    const cachedEvents: any[] = [];
+    const missingIds: string[] = [];
+
+    for (const id of ids) {
+      if (cachedData[id]) {
+        cachedEvents.push(cachedData[id]);
+      } else {
+        missingIds.push(id);
+      }
+    }
+
+    // If all events are cached, return them
+    if (missingIds.length === 0) {
+      return Array.isArray(eventId) ? cachedEvents : cachedEvents[0];
+    }
+
+    // Fetch missing events from API
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+      const idsParam = missingIds.join(",");
+      const response = await fetch(`${apiUrl}/events?ids=${idsParam}`);
+      const data = await response.json();
+
+      if (response.ok && data.events?.length > 0) {
+        // Update cache with newly fetched events
+        const newCache = { ...cachedData };
+        for (const event of data.events) {
+          if (event._id) {
+            newCache[event._id] = event;
+          }
+        }
+        localStorage.setItem(cacheKey, JSON.stringify(newCache));
+
+        // Merge fetched events with cached ones and return
+        const fetchedMap = new Map(data.events.map((e: any) => [e._id, e]));
+        const allEvents = ids.map((id) => newCache[id] || fetchedMap.get(id)).filter(Boolean);
+
+        return Array.isArray(eventId) ? allEvents : allEvents[0];
+      }
+    } catch (err) {
+      console.error("Failed to fetch events:", err);
+      // Return whatever we have cached
+      return Array.isArray(eventId) ? cachedEvents : cachedEvents[0] || null;
+    }
+
+    // If we couldn't fetch missing events, return what we have
+    return Array.isArray(eventId) ? cachedEvents : cachedEvents[0] || null;
+  };
 
   // Fetch game state
   useEffect(() => {
@@ -72,6 +139,17 @@ export function PlayPage() {
         setGameState(data);
         // Store game ID in localStorage for future visits
         localStorage.setItem("CEcurrentGameId", id);
+        
+        // Check if there's a limbo event (drawn but not yet guessed)
+        // If so, load it as the drawn card using our helper function
+        if (data.state?.limbo) {
+          const limboEvent = await getEventById(data.state.limbo);
+          // Set the limbo event as the drawn card if we found it
+          if (limboEvent) {
+            setDrawnCard(limboEvent);
+          }
+        }
+        
         setIsLoading(false);
       } catch (error) {
         console.error("Failed to fetch game state:", error);
@@ -159,19 +237,31 @@ export function PlayPage() {
       const data = await response.json();
 
       if (response.ok && Array.isArray(data) && data.length > 0) {
-        const drawnEvent = data[0];
+        let drawnEvent = data[0];
         
-        // Cache the drawn event so Timeline doesn't need to fetch it later
-        // This matches the caching pattern used in Timeline.tsx
-        const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
-        const cachedData: Record<string, any> = JSON.parse(
-          localStorage.getItem(cacheKey) || "{}"
-        );
-        
-        // Only add to cache if the event has an _id
+        // Check if we got a full event object or just an ID
+        // If the API returns a full event with date, title, description, etc.,
+        // cache it directly. Otherwise, fetch the full event using the ID.
         if (drawnEvent._id) {
-          cachedData[drawnEvent._id] = drawnEvent;
-          localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+          // Check if this is a full event object (has date, title, or description)
+          const isFullEvent = drawnEvent.date || drawnEvent.title || drawnEvent.description;
+          
+          if (isFullEvent) {
+            // We have the full event, cache it directly
+            const cacheKey = `CE-${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+            const cachedData: Record<string, any> = JSON.parse(
+              localStorage.getItem(cacheKey) || "{}"
+            );
+            cachedData[drawnEvent._id] = drawnEvent;
+            localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+          } else {
+            // Only have the ID, need to fetch the full event
+            const fullEvent = await getEventById(drawnEvent._id);
+            if (fullEvent) {
+              // Use the full event from the cache/API
+              drawnEvent = fullEvent;
+            }
+          }
         }
         
         setDrawnCard(drawnEvent);
