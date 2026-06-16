@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
+import { EVENT_CACHE_KEY_PREFIX } from "../constants";
 
 interface TimelineCardProps {
   event: any;
@@ -73,8 +74,6 @@ interface PlacementOptionProps {
   onPlace: any;
 }
 
-const CACHE_KEY_PREFIX = "game-event-cache-";
-
 function sortEventsByDate(events: any[]): any[] {
   return [...events].sort((a, b) => {
 		if(a.date < b.date) return -1;
@@ -102,7 +101,8 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
     const loadEvents = async () => {
       setIsLoading(true);
       
-      const cacheKey = `CE-${CACHE_KEY_PREFIX}${gameId}`;
+      // Build cache key using the shared constant from ../constants
+      const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
       const cachedData: Record<string, any> = JSON.parse(
         localStorage.getItem(cacheKey) || "{}"
       );

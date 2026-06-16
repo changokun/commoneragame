@@ -4,6 +4,7 @@ import { Settings, PlusCircle, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Timeline } from "../components/Timeline";
+import { EVENT_CACHE_KEY_PREFIX } from "../constants";
 
 // Player interface: represents a player in the game
 // Contains all player data including name, identifier, and score
@@ -158,7 +159,22 @@ export function PlayPage() {
       const data = await response.json();
 
       if (response.ok && Array.isArray(data) && data.length > 0) {
-        setDrawnCard(data[0]);
+        const drawnEvent = data[0];
+        
+        // Cache the drawn event so Timeline doesn't need to fetch it later
+        // This matches the caching pattern used in Timeline.tsx
+        const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+        const cachedData: Record<string, any> = JSON.parse(
+          localStorage.getItem(cacheKey) || "{}"
+        );
+        
+        // Only add to cache if the event has an _id
+        if (drawnEvent._id) {
+          cachedData[drawnEvent._id] = drawnEvent;
+          localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+        }
+        
+        setDrawnCard(drawnEvent);
       } else {
         console.error("Unexpected response from draw endpoint:", data);
         setIsPaused(false);
@@ -171,23 +187,33 @@ export function PlayPage() {
 
 	const handleCorrectMove = async () => {
 		console.log("CORRECT YAY")
-		gameState.state.timelineCollaborative = [...gameState.state.timelineCollaborative, drawnCard._id];
+		
+		// Store the drawn card ID before clearing it, so we can use it below
+		const drawnCardId = drawnCard._id;
+		
+		// Update the timeline immediately with the new event ID
+		// This ensures the UI updates right away, before the API call
+		gameState.state.timelineCollaborative = [...gameState.state.timelineCollaborative, drawnCardId];
+		
 		setDrawnCard(null);
 		setIsPaused(false);
+		
 		try {
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const playerId = gameState.players[gameState.state.currentTurn]?._id || gameState.state.currentTurn;
 			const response = await fetch(`${apiUrl}/games/${gameId}/player/${playerId}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ eventId: drawnCard._id, success: true })
+				body: JSON.stringify({ eventId: drawnCardId, success: true })
 			});
 			console.log('response', response)
 			if (response.ok) {
+				// Success - event was recorded on the server
 			}
 		} catch (error) {
 			console.error("Failed to report correct move:", error);
-			setIsPaused(false);
+			// Note: We already updated the UI optimistically above
+			// The API call failure doesn't revert the UI change
 		}
 	}
 	
