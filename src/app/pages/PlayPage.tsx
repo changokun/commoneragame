@@ -39,7 +39,12 @@ interface GameState {
 export function PlayPage() {
   const { gameId: urlGameId } = useParams();
   const navigate = useNavigate();
-  const [gameId, setGameId] = useState<string | null>(null);
+  
+  // gameId is derived from URL params or localStorage and never changes
+  // It's required for the page to function, so if it doesn't exist we show an error
+  // We don't use useState because it's computed once and never modified
+  const gameId = urlGameId || localStorage.getItem("CEcurrentGameId") || null;
+  
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMyTurn, setIsMyTurn] = useState(false);
@@ -47,15 +52,24 @@ export function PlayPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [drawnCard, setDrawnCard] = useState<any>(null);
 
+  // If we have a gameId in localStorage but not in the URL, update the URL
+  useEffect(() => {
+    if (!urlGameId && gameId) {
+      navigate(`/play/${gameId}`, { replace: true });
+    }
+  }, [urlGameId, gameId, navigate]);
+
   // Helper function to fetch event(s) by ID from cache or API
   // This consolidates the caching logic used in multiple places
   // @param eventId - Single event ID string or array of event IDs
   // @returns Promise resolving to the event object(s) or null if not found
   const getEventById = async (eventId: string | string[]): Promise<any | any[] | null> => {
+		console.log('getEventById()', eventId, 'gameId', gameId)
     if (!gameId) return null;
 
     // Build cache key using the game ID
-    const cacheKey = `CE-${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+    // Matches the cache key format used in Timeline.tsx: CE-game-event-cache-{gameId}
+    const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
     const cachedData: Record<string, any> = JSON.parse(
       localStorage.getItem(cacheKey) || "{}"
     );
@@ -63,6 +77,7 @@ export function PlayPage() {
     // Normalize to array for consistent handling
     const ids = Array.isArray(eventId) ? eventId : [eventId];
 
+		console.log('getEventById()', ids, 'cachedData', cachedData)
     // Check which events are cached and which need fetching
     const cachedEvents: any[] = [];
     const missingIds: string[] = [];
@@ -115,22 +130,13 @@ export function PlayPage() {
 
   // Fetch game state
   useEffect(() => {
-    // Check for game ID in URL params or localStorage
-    let foundGameId = urlGameId || null;
-
-    if (!foundGameId) {
-      // Check localStorage
-      const storedGameId = localStorage.getItem("CEcurrentGameId");
-      if (storedGameId) {
-        foundGameId = storedGameId;
-        // Update URL to include the game ID
-        navigate(`/play/${storedGameId}`, { replace: true });
-      }
+    // We already have gameId computed at the top from URL or localStorage
+    // Just fetch the game state if we have a valid gameId
+    if (!gameId) {
+      setIsLoading(false);
+      return;
     }
 
-    setGameId(foundGameId);
-
-    // Fetch game state if we have a game ID
     const fetchGameState = async (id: string) => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
@@ -139,12 +145,14 @@ export function PlayPage() {
         setGameState(data);
         // Store game ID in localStorage for future visits
         localStorage.setItem("CEcurrentGameId", id);
-        
+        console.log('just got this gamestate data', data)
         // Check if there's a limbo event (drawn but not yet guessed)
         // If so, load it as the drawn card using our helper function
         if (data.state?.limbo) {
+					console.log('yes data.state.limbo', data.state.limbo)
           const limboEvent = await getEventById(data.state.limbo);
           // Set the limbo event as the drawn card if we found it
+					console.log('limboEvent', limboEvent)
           if (limboEvent) {
             setDrawnCard(limboEvent);
           }
@@ -157,12 +165,9 @@ export function PlayPage() {
       }
     };
 
-    if (foundGameId) {
-      fetchGameState(foundGameId);
-    } else {
-      setIsLoading(false);
-    }
-  }, [urlGameId, navigate]);
+    // Fetch the game state using the gameId we computed at the top
+    fetchGameState(gameId);
+  }, [urlGameId, navigate, gameId]);
 
   if (isLoading) {
     return (
@@ -238,7 +243,7 @@ export function PlayPage() {
 
       if (response.ok && Array.isArray(data) && data.length > 0) {
         let drawnEvent = data[0];
-        
+        console.log('just got this from api', drawnEvent)
         // Check if we got a full event object or just an ID
         // If the API returns a full event with date, title, description, etc.,
         // cache it directly. Otherwise, fetch the full event using the ID.
@@ -248,7 +253,7 @@ export function PlayPage() {
           
           if (isFullEvent) {
             // We have the full event, cache it directly
-            const cacheKey = `CE-${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+            const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
             const cachedData: Record<string, any> = JSON.parse(
               localStorage.getItem(cacheKey) || "{}"
             );
