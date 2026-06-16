@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
+import { Button } from "./ui/button";
 
 interface TimelineCardProps {
   event: any;
@@ -7,16 +8,10 @@ interface TimelineCardProps {
 }
 
 function TimelineCard({ event, index }: TimelineCardProps) {
-	console.log('event for TimelineCard', event)
   return (
-    <Card key={index} className="p-4">
+    <Card key={index} className="p-4 h-30 timeline-card">
       <div className="space-y-2">
         <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{event.date}</span> {event.title || `Event ${index + 1}`}</h3>
-        {event.year && (
-          <p className="text-sm text-muted-foreground">
-            {event.year}
-          </p>
-        )}
         {event.description && (
           <p className="text-sm">{event.description}</p>
         )}
@@ -25,9 +20,57 @@ function TimelineCard({ event, index }: TimelineCardProps) {
   );
 }
 
+function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }: PlacementOptionProps) {
+	const b = before?.date
+	const a = after?.date
+	
+	// Build placement description - one line, maybe two
+	let label = "Place card";
+	if (a && b) {
+		label = `Place between ${a} and ${b}`;
+	} else if (b) {
+		label = `Place before ${b}`;
+	} else if (a) {
+		label = `Place after ${a}`;
+	}
+
+	// Determine placement position for the handler
+	// const placement = {
+	// 	after: a ? after._id : null,
+	// 	before: b ? before._id : null
+	// };
+
+	return (
+		// -scroll-my-4 huh?
+		<div className="snapper">
+			<Button 
+				variant="outline" 
+				size="lg"
+				className="w-full max-w-xs justify-start cursor-pointer"
+				data-splicestartindex={spliceStartIndex}
+				onClick={onPlace}
+			>
+				{label}
+			</Button>
+		</div>
+	)
+}
+
 interface TimelineProps {
   events: any[];
   gameId: string | null;
+	drawnCard: any | null;
+	handleCorrectMove?: any;
+	handleIncorrectMove?: any;
+	onPlace?: (placement: { after: string | null; before: string | null }) => void;
+}
+
+interface PlacementOptionProps {
+  spliceStartIndex: number;
+  before?: any;
+  after?: any;
+	drawnCard: any;
+  onPlace: any;
 }
 
 const CACHE_KEY_PREFIX = "game-event-cache-";
@@ -40,7 +83,11 @@ function sortEventsByDate(events: any[]): any[] {
   });
 }
 
-export function Timeline({ events: eventIds, gameId }: TimelineProps) {
+function doNotDoAnything() {
+	console.log('nuttin doin')
+}
+
+export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMove, handleIncorrectMove }: TimelineProps) {
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -151,11 +198,98 @@ export function Timeline({ events: eventIds, gameId }: TimelineProps) {
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {events.map((event, index) => (
-        <TimelineCard key={index} event={event} index={index} />
-      ))}
-    </div>
-  );
+	let correctPosition = -9
+	if(drawnCard) {
+		console.log('drawnCard.date', drawnCard.date)
+		console.log('events[0].date', events[0].date)
+		console.log('events[events.length - 1].date', events[events.length - 1].date, events.length - 1)
+		// which is the correct position?
+		if(drawnCard.date < events[0].date) {
+			correctPosition = 0
+		} else if(drawnCard.date > events[events.length - 1].date) {
+			correctPosition = events.length
+		} else {
+			events.forEach((event, index) => {
+				if(correctPosition === -9) {
+					console.log('index', index, event.date)
+					if(event.date > drawnCard.date) {
+						correctPosition = index
+					}
+				}
+			})
+		}
+		console.log('correctPosition', correctPosition)
+	}
+
+	const onPlace = drawnCard? handleIncorrectMove : doNotDoAnything;
+
+	// so that we can have keys on things, and fewer <>s.
+	let items = []
+	items.push(
+		<PlacementOption key={`po-1`} spliceStartIndex={0} before={events[0]} drawnCard={drawnCard} onPlace={drawnCard && correctPosition === 0 ? handleCorrectMove : onPlace} />
+	)
+
+	events.forEach((event, index) => {
+		items.push(
+			<div 
+				key={index} 
+				className="timeline-card-container"
+			>
+				<TimelineCard event={event} index={index} />
+			</div>
+		)
+
+		items.push(
+			<PlacementOption key={`po${index}`} spliceStartIndex={index + 1} before={events[index + 1]} after={events[index]} drawnCard={drawnCard} onPlace={drawnCard && correctPosition === index + 1 ? handleCorrectMove : onPlace} />
+		)
+	})
+
+	return (
+		<div className="timeline space-y-4 overflow-y-auto">
+			{items}
+		</div>
+	)
+
+
+		// return (
+		// 	<>
+		// 	{drawnCard?
+		// 		index == 0 ? "" : <PlacementOption key={`po${index}`} spliceStartIndex={index} before={events[index]} after={events[index - 1]} onPlace={onPlace} />
+		// 		:''}
+		// 	<div 
+		// 		key={index} 
+		// 		className="timeline-card-container"
+		// 	>
+		// 		<TimelineCard event={event} index={index} />
+		// 	</div>
+		// 	</>
+		// );
+	// })}
+
+  // return (
+  //   <div className="timeline space-y-4 overflow-y-auto">
+	// 		{drawnCard?
+	// 			<PlacementOption key={`po0`} spliceStartIndex={0} before={events[0]} onPlace={onPlace} />
+	// 			:''}
+  //     {events.map((event, index) => {
+	// 			// Add extra margin bottom for the card above the gap
+  //       return (
+	// 				<>
+	// 				{drawnCard?
+	// 					index == 0 ? "" : <PlacementOption key={`po${index}`} spliceStartIndex={index} before={events[index]} after={events[index - 1]} onPlace={onPlace} />
+	// 					:''}
+	// 				<div 
+	// 					key={index} 
+	// 					className="timeline-card-container"
+  //         >
+  //           <TimelineCard event={event} index={index} />
+  //         </div>
+	// 				</>
+  //       );
+  //     })}
+	// 		{drawnCard?
+	// 			<PlacementOption key={`po${events.length}`} spliceStartIndex={events.length} after={events[events.length - 1]} onPlace={onPlace} />
+	// 		:''}
+  //   </div>
+  // );
 }

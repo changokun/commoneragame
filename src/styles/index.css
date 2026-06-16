@@ -1,3 +1,15 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+
+/* .is-paused  */
+.timeline {
+	padding: calc(50vh + 1px) 0;
+	scroll-snap-type: y mandatory;
+}
+.timeline .snapper {
+	scroll-snap-align: center;
+	scroll-snap-stop: normal;
+	scroll-margin-top: -80px;
+}
