@@ -19,7 +19,7 @@ interface FormData {
   playerType: PlayerType;
   deviceMode: DeviceMode;
   playerNames: string[];
-  eventCount: number;
+  maxEvents: number;
   errorLimit: number;
   beginningFrom: string;
   upThrough: string;
@@ -29,7 +29,7 @@ interface FormData {
 
 interface Preset {
   name: string;
-  eventCount: number;
+  maxEvents: number;
   errorLimit: number;
   beginningFrom: string;
   upThrough: string;
@@ -40,7 +40,7 @@ interface Preset {
 const PRESETS: Preset[] = [
   {
     name: "Roman Art History",
-    eventCount: 30,
+    maxEvents: 30,
     errorLimit: 3,
     beginningFrom: "100 BCE",
     upThrough: "400 CE",
@@ -49,7 +49,7 @@ const PRESETS: Preset[] = [
   },
   {
     name: "World Wars",
-    eventCount: 50,
+    maxEvents: 50,
     errorLimit: 5,
     beginningFrom: "1914",
     upThrough: "1945",
@@ -58,7 +58,7 @@ const PRESETS: Preset[] = [
   },
   {
     name: "Ancient History",
-    eventCount: 40,
+    maxEvents: 40,
     errorLimit: 3,
     beginningFrom: "4000 BCE",
     upThrough: "500 CE",
@@ -96,7 +96,7 @@ export function NewGamePage() {
     playerType: null,
     deviceMode: null,
     playerNames: [""],
-    eventCount: 30,
+    maxEvents: 30,
     errorLimit: 3,
     beginningFrom: "4000 BCE",
     upThrough: "2026 CE",
@@ -114,7 +114,11 @@ export function NewGamePage() {
   };
 
   const handlePlayerTypeSelect = (playerType: PlayerType) => {
-    setFormData({ ...formData, playerType, deviceMode: null, playerNames: [""] });
+		if(playerType === 'justMe') {
+			setFormData({ ...formData, playerType, deviceMode: 'single', playerNames: [""] });
+		} else {
+			setFormData({ ...formData, playerType, deviceMode: null, playerNames: [""] });
+		}
     setError(null);
   };
 
@@ -147,7 +151,7 @@ export function NewGamePage() {
     if (preset) {
       setFormData({
         ...formData,
-        eventCount: preset.eventCount,
+        maxEvents: preset.maxEvents,
         errorLimit: preset.errorLimit,
         beginningFrom: preset.beginningFrom,
         upThrough: preset.upThrough,
@@ -177,14 +181,19 @@ export function NewGamePage() {
       setIsFetchingEvents(true);
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-        const queryParams = new URLSearchParams({
-          beginningFrom: formData.beginningFrom,
-          upThrough: formData.upThrough,
-          geographicLimits: formData.geographicLimits.join(","),
-          topics: formData.topics.join(","),
-        });
 
-        const response = await fetch(`${apiUrl}/events?${queryParams}`);
+        const response = await fetch(`${apiUrl}/stack`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: formData.beginningFrom,
+            to: formData.upThrough,
+            geographicLimits: formData.geographicLimits,
+            topics: formData.topics,
+          }),
+        });
         const data = await response.json();
 
         if (response.ok) {
@@ -246,7 +255,7 @@ export function NewGamePage() {
           gameMode: formData.gameMode,
           deviceMode: formData.deviceMode,
           playerNames,
-          eventCount: formData.eventCount,
+          maxEvents: formData.maxEvents,
           errorLimit: formData.errorLimit,
           beginningFrom: formData.beginningFrom,
           upThrough: formData.upThrough,
@@ -264,8 +273,8 @@ export function NewGamePage() {
       }
 
       // Store game ID in localStorage
-      localStorage.setItem("currentGameId", data.gameId);
-      navigate(`/play/${data.gameId}`);
+      localStorage.setItem("CEcurrentGameId", data._id);
+      navigate(`/play/${data._id}`);
     } catch (err) {
       setError("Server is not available. Please try again later.");
       setIsSubmitting(false);
@@ -478,14 +487,14 @@ export function NewGamePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Event Count Slider */}
               <div className="space-y-2">
-                <Label>How many events? ({formData.eventCount})</Label>
+                <Label>How many events? ({formData.maxEvents})</Label>
                 <Slider
                   min={10}
                   max={100}
                   step={5}
-                  value={[formData.eventCount]}
+                  value={[formData.maxEvents]}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, eventCount: value[0] })
+                    setFormData({ ...formData, maxEvents: value[0] })
                   }
                 />
               </div>
