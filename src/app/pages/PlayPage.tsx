@@ -1,25 +1,36 @@
 import { useParams, useNavigate, Link } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Settings, PlusCircle, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+import { Timeline } from "../components/Timeline";
 
+// Player interface: represents a player in the game
+// Contains all player data including name, identifier, and score
+interface Player {
+  _id: string;
+  name: string;
+  score?: number;
+}
+
+// GameState interface: represents the complete state of a game
+// Received from the backend API - players array now contains Player objects instead of separate playerNames
 interface GameState {
   gameMode: "competitive" | "collaborative";
   deviceMode: "single" | "multiple";
-  playerNames: string[];
   settings: {
     targetScore: number;
     turnOrder: string;
   };
   state: {
-    timeline: any[];
+    timelineCollaborative: any[];
     currentTurn: number;
     currentEventIndex: number;
     agreedEvents: any[];
+		incorrectCardStack: any[];
   };
   status: string;
-  players: any[];
+  players: Player[]; // Array of Player objects - source of truth for player data
   remainingEventCount?: number;
 }
 
@@ -31,14 +42,17 @@ export function PlayPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [activeCard, setActiveCard] = useState<any>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [drawnCard, setDrawnCard] = useState<any>(null);
 
+  // Fetch game state
   useEffect(() => {
     // Check for game ID in URL params or localStorage
     let foundGameId = urlGameId || null;
 
     if (!foundGameId) {
       // Check localStorage
-      const storedGameId = localStorage.getItem("currentGameId");
+      const storedGameId = localStorage.getItem("CEcurrentGameId");
       if (storedGameId) {
         foundGameId = storedGameId;
         // Update URL to include the game ID
@@ -56,7 +70,7 @@ export function PlayPage() {
         const data = await response.json();
         setGameState(data);
         // Store game ID in localStorage for future visits
-        localStorage.setItem("currentGameId", id);
+        localStorage.setItem("CEcurrentGameId", id);
         setIsLoading(false);
       } catch (error) {
         console.error("Failed to fetch game state:", error);
@@ -118,7 +132,7 @@ export function PlayPage() {
         <div className="text-center space-y-4">
           <p className="text-muted-foreground">Game not found</p>
           <Button onClick={() => {
-            localStorage.removeItem("currentGameId");
+            localStorage.removeItem("CEcurrentGameId");
             navigate("/play");
           }}>
             Clear and Return
@@ -129,52 +143,145 @@ export function PlayPage() {
   }
 
   const isCollaborative = gameState.gameMode === "collaborative";
-  const currentPlayerName = gameState.playerNames[gameState.state.currentTurn] || "Player";
+  // Get the current player's name from the players array
+  // currentTurn is an index into the players array
+  const currentPlayerName = gameState.players[gameState.state.currentTurn]?.name || "Player " + (gameState.state.currentTurn + 1);
+
+  const handleDrawCard = async () => {
+    if (!gameId) return;
+
+    setIsPaused(true);
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era/';
+      const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
+      const data = await response.json();
+
+      if (response.ok && Array.isArray(data) && data.length > 0) {
+        setDrawnCard(data[0]);
+      } else {
+        console.error("Unexpected response from draw endpoint:", data);
+        setIsPaused(false);
+      }
+    } catch (err) {
+      console.error("Failed to draw card:", err);
+      setIsPaused(false);
+    }
+  };
+
+	const handleCorrectMove = async () => {
+		console.log("CORRECT YAY")
+		gameState.state.timelineCollaborative = [...gameState.state.timelineCollaborative, drawnCard._id];
+		setDrawnCard(null);
+		setIsPaused(false);
+		try {
+			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+			const playerId = gameState.players[gameState.state.currentTurn]?._id || gameState.state.currentTurn;
+			const response = await fetch(`${apiUrl}/games/${gameId}/player/${playerId}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ eventId: drawnCard._id, success: true })
+			});
+			console.log('response', response)
+			if (response.ok) {
+			}
+		} catch (error) {
+			console.error("Failed to report correct move:", error);
+			setIsPaused(false);
+		}
+	}
+	
+	const handleIncorrectMove = () => {
+		console.log("WRONG BOOOO")
+		drawnCard.strikeCount = drawnCard.strikeCount++ || 1;
+		gameState.state.incorrectCardStack = [...gameState.state.incorrectCardStack, drawnCard]
+		setDrawnCard(null)
+		setIsPaused(false)
+		// report to api
+	}
+
+	console.log('gameState', gameState)
 
   return (
-    <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden">
+		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col lg:flex-row overflow-hidden relative`}>
       {/* Desktop: Left Column - Timeline */}
       {/* Mobile Waiting: Stacked section */}
-      <div className={`flex-1 overflow-y-auto p-4 ${isMyTurn ? "lg:flex-1" : ""}`}>
-        <div className="mb-4">
+      <div className={`flex flex-col h-[calc(100vh-120px)] ${isMyTurn ? "lg:flex-1" : ""} relative z-20`}>
+        {/* <div className="p-4 pb-0">
           <h2 className="text-xl font-semibold">Timeline</h2>
           <p className="text-sm text-muted-foreground">
             {isCollaborative ? "Shared Timeline" : "Your Timeline"}
           </p>
-        </div>
+        </div> */}
 
-        {/* Timeline Cards - Placeholder */}
-        <div className="space-y-4">
-          <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-            <p className="text-center text-muted-foreground">Timeline cards will appear here</p>
+        {/* Timeline Cards - scrollable container */}
+        {/* <div className="flex-1 p-4 pt-0"> */}
+          <Timeline 
+            events={gameState.state.timelineCollaborative} 
+            gameId={gameId}
+						drawnCard={drawnCard}
+						handleCorrectMove={handleCorrectMove}
+						handleIncorrectMove={handleIncorrectMove}
+          />
+        {/* </div> */}
+
+        {/* Drawn Card - absolutely positioned over right middle of timeline */}
+        {drawnCard && (
+          <Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
+            <div className="p-4">
+              <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>{drawnCard.title || drawnCard.name || "Event"}</h3>
+              {drawnCard.description && (
+                <p className="text-sm mt-2">{drawnCard.description}</p>
+              )}
+            </div>
           </Card>
-          <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-            <p className="text-center text-muted-foreground">Event card placeholder</p>
-          </Card>
-        </div>
+        )}
       </div>
 
       {/* Desktop: Middle Column - Draw + Incorrect Stack */}
       {/* Mobile Waiting: Stacked section */}
       {!isMyTurn && (
-        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border p-4 overflow-y-auto">
+        <div className={`w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
           <div className="space-y-4">
             {/* Draw Button */}
             <div>
-              <Button className="w-full" size="lg">
-                Draw Event Card
+              <Button 
+                className="w-full" 
+                size="lg" 
+                onClick={handleDrawCard}
+                disabled={isPaused}
+              >
+                Draw New Event…
               </Button>
             </div>
 
             {/* Incorrect Guesses Stack */}
             <div>
-              <h3 className="text-sm font-semibold mb-2">Incorrect Guesses</h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-                  <p className="text-center text-muted-foreground text-sm">
-                    Incorrect cards will appear here
-                  </p>
-                </Card>
+              {gameState.state.incorrectCardStack.length > 0 ? (
+              	<h3 className="text-sm font-semibold mb-2">…or try one of these again:</h3>
+							) : ''}
+              <div className="space-y-2">
+                {gameState.state.incorrectCardStack.length > 0 ? (
+                  gameState.state.incorrectCardStack.map((card) => (
+                    <Card key={card._id} className="p-4">
+                      <h3 className="font-semibold">
+                        <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+                          {'X'.repeat(card.strikeCount)}
+                        </span>
+                        {card.title || card.name || "Event"}
+                      </h3>
+                      {card.description && (
+                        <p className="text-sm mt-2">{card.description}</p>
+                      )}
+                    </Card>
+                  ))
+                ) : (
+                  <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
+                    <p className="text-center text-muted-foreground text-sm">
+                      Incorrect cards will appear here. You can try them again.
+                    </p>
+                  </Card>
+                )}
               </div>
             </div>
           </div>
@@ -184,7 +291,7 @@ export function PlayPage() {
       {/* Desktop: Right Column - Player Info & Stats */}
       {/* Mobile Waiting: Stacked section */}
       {!isMyTurn && (
-        <div className="w-full lg:w-64 border-t lg:border-t-0 lg:border-l border-border p-4 overflow-y-auto">
+        <div className={`w-full lg:w-64 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
           <div className="space-y-4">
             {/* Settings */}
             <div className="flex justify-end">
@@ -205,7 +312,7 @@ export function PlayPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Timeline Length:</span>
-                    <span className="font-medium">{gameState.state.timeline.length}</span>
+                    <span className="font-medium">{gameState.state.timelineCollaborative.length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Remaining Events:</span>
@@ -220,10 +327,11 @@ export function PlayPage() {
             ) : (
               <div>
                 <h3 className="text-sm font-semibold mb-2">Players</h3>
+                {/* Render player list from players array instead of playerNames */}
                 <div className="space-y-2">
-                  {gameState.playerNames.map((name, index) => (
+                  {gameState.players.map((player, index) => (
                     <div
-                      key={index}
+                      key={player._id || index}
                       className={`p-2 rounded ${
                         index === gameState.state.currentTurn
                           ? "bg-primary/10 border border-primary"
@@ -231,8 +339,10 @@ export function PlayPage() {
                       }`}
                     >
                       <div className="flex justify-between items-center">
-                        <span className="font-medium">{name}</span>
-                        <span className="text-sm text-muted-foreground">Score: 0</span>
+                        {/* Use player.name from the Player object */}
+                        <span className="font-medium">{player.name}</span>
+                        {/* Use player.score from the Player object, default to 0 */}
+                        <span className="text-sm text-muted-foreground">Score: {player.score || 0}</span>
                       </div>
                     </div>
                   ))}
