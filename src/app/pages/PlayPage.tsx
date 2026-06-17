@@ -263,7 +263,6 @@ export function PlayPage() {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
       const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
       const data = await response.json();
-			console.log('just got this from api', data)
 
       if (response.ok && data.date && data.title) {
 				// data is already the full event. cache it, and continue.
