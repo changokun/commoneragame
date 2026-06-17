@@ -147,8 +147,20 @@ export function PlayPage() {
 				// Transform any ID-only items in incorrectCardStack to full objects
 				if (data.state?.incorrectCardStack?.length > 0) {
 					data.state.incorrectCardStack = await Promise.all(
-						data.state.incorrectCardStack.map(async (cardOrId) =>
-							typeof cardOrId === 'string' ? await getEventById(cardOrId) : cardOrId
+						data.state.incorrectCardStack.map(async (cardOrId) => {
+							if(typeof cardOrId === 'string') {
+								return await getEventById(cardOrId);
+							} else if(cardOrId.title) {
+								return cardOrId;
+							} else if(cardOrId.eventId) {
+									console.log('cardOrId', cardOrId)
+									const event = await getEventById(cardOrId.eventId)
+									console.log('event', event)
+									event.strikes = cardOrId.strikes ? cardOrId.strikes : [];
+									console.log('event', event)
+									return event;
+								}
+							}
 						)
 					);
 				}
@@ -349,7 +361,12 @@ export function PlayPage() {
 		console.log("WRONG BOOOO")
 		// Store the drawn card ID before clearing it, so we can use it below
 		const drawnCardId = drawnCard._id;
-		drawnCard.strikeCount = drawnCard.strikeCount++ || 1;
+		const playerId = gameState.players[gameState.state.currentTurn]?._id || gameState.state.currentTurn;
+		if(drawnCard.strikes) {
+			drawnCard.strikes.push(playerId)
+		} else {
+			drawnCard.strikes = [playerId];
+		}
 
 		setGameState({
 			...gameState,
@@ -477,7 +494,7 @@ export function PlayPage() {
                     <Card key={card._id} className="p-4">
                       <h3 className="font-semibold">
                         <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
-                          {'X'.repeat(card.strikeCount)}
+                          {'X'.repeat(card.strikes.length)}
                         </span>
                         {card.title || card.name || "Event"}
                       </h3>
