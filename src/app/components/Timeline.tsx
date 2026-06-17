@@ -10,7 +10,7 @@ interface TimelineCardProps {
 
 function TimelineCard({ event, index }: TimelineCardProps) {
   return (
-    <Card key={index} className="p-4 h-30 timeline-card">
+    <Card key={index} className="p-4 timeline-card">
       <div className="space-y-2">
         <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{event.date}</span> {event.title || `Event ${index + 1}`}</h3>
         {event.description && (
@@ -47,7 +47,7 @@ function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }
 			<Button 
 				variant="outline" 
 				size="lg"
-				className="w-full max-w-xs justify-start cursor-pointer"
+				className="w-full lg:max-w-xs justify-start cursor-pointer"
 				data-splicestartindex={spliceStartIndex}
 				onClick={onPlace}
 			>
@@ -269,7 +269,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 
 	return (
 		// the height on this seems to be unimportant, but we may want it if we add a fixed footer.
-		<div className="timeline space-y-4 overflow-y-auto h-[calc(100vh-53px)] pr-4">
+		<div className="timeline space-y-4 overflow-y-auto h-[calc(100vh-53px)] px-4">
 			{items}
 		</div>
 	)
