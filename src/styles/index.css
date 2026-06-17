@@ -5,7 +5,8 @@
 
 /* .is-paused  */
 .timeline {
-	padding: calc(50vh + 1px) 0;
+	padding-top: calc(50vh + 1px);
+	padding-bottom: calc(50vh + 1px);
 	scroll-snap-type: y mandatory;
 }
 .timeline .snapper {
