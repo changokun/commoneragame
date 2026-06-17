@@ -260,7 +260,7 @@ export function PlayPage() {
     setIsPaused(true);
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era/';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
       const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
       const data = await response.json();
 			console.log('just got this from api', data)
