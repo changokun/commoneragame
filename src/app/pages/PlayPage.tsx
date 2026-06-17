@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Settings, PlusCircle, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -51,6 +51,7 @@ export function PlayPage() {
   const [activeCard, setActiveCard] = useState<any>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [drawnCard, setDrawnCard] = useState<any>(null);
+
 
   // If we have a gameId in localStorage but not in the URL, update the URL
   useEffect(() => {
@@ -142,6 +143,15 @@ export function PlayPage() {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
         const response = await fetch(`${apiUrl}/games/${id}`);
         const data = await response.json();
+
+				// Transform any ID-only items in incorrectCardStack to full objects
+				if (data.state?.incorrectCardStack?.length > 0) {
+					data.state.incorrectCardStack = await Promise.all(
+						data.state.incorrectCardStack.map(async (cardOrId) =>
+							typeof cardOrId === 'string' ? await getEventById(cardOrId) : cardOrId
+						)
+					);
+				}
         setGameState(data);
         // Store game ID in localStorage for future visits
         localStorage.setItem("CEcurrentGameId", id);
@@ -340,7 +350,15 @@ export function PlayPage() {
 		// Store the drawn card ID before clearing it, so we can use it below
 		const drawnCardId = drawnCard._id;
 		drawnCard.strikeCount = drawnCard.strikeCount++ || 1;
-		gameState.state.incorrectCardStack = [...gameState.state.incorrectCardStack, drawnCard];
+
+		setGameState({
+			...gameState,
+			state: {
+				...gameState.state,
+				incorrectCardStack: [...gameState.state.incorrectCardStack, drawnCard]
+			}
+		});
+
 		setDrawnCard(null);
 		setIsPaused(false);
 		
@@ -349,6 +367,8 @@ export function PlayPage() {
 	}
 
 	console.log('gameState', gameState)
+	// no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
+	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
 
   return (
 		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col lg:flex-row overflow-hidden relative`}>
@@ -397,16 +417,16 @@ export function PlayPage() {
                 className="w-full" 
                 size="lg" 
                 onClick={handleDrawCard}
-                disabled={isPaused}
+                disabled={isPaused || drawStackEmpty}
               >
-                Draw New Event…
+                {drawStackEmpty ? "No More Events" : "Draw New Event…"}
               </Button>
             </div>
 
             {/* Incorrect Guesses Stack */}
             <div>
               {gameState.state.incorrectCardStack.length > 0 ? (
-              	<h3 className="text-sm font-semibold mb-2">…or try one of these again:</h3>
+              	<h3 className="text-sm font-semibold mb-2">{drawStackEmpty ? `…and ${gameState.state.incorrectCardStack.length} incorrect guesses` : "…or try one of these again:"}</h3>
 							) : ''}
               <div className="space-y-2">
                 {gameState.state.incorrectCardStack.length > 0 ? (
