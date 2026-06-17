@@ -382,6 +382,46 @@ export function PlayPage() {
 		reportMove(drawnCardId, false);
 	}
 
+	// Helper function to redraw a card from the incorrect stack
+	// Called when user clicks on an incorrect card instead of a random draw
+	const handleRedrawCard = async (card: any) => {
+		if (!gameId || !gameState) return;
+
+		console.log('user wants this card again', card)
+		setIsPaused(true);
+	
+		// Call API to redraw this specific event
+		try {
+			
+			// Remove from incorrect stack
+			const newIncorrectStack = gameState.state.incorrectCardStack.filter(
+				(c: any) => c._id !== card._id
+			);
+			
+			// Set as drawn card and update state
+			setGameState({
+				...gameState,
+				state: {
+					...gameState.state,
+					incorrectCardStack: newIncorrectStack
+				}
+			});
+			setDrawnCard(card);
+			
+			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+			const response = await fetch(`${apiUrl}/games/${gameId}/draw/${card._id}`, {
+				method: 'POST'
+			});
+			if (response.status === 201) {
+
+			}
+		} catch (error) {
+			console.error("Failed to redraw card:", error);
+		}
+	};
+
+
+
 	console.log('gameState', gameState)
 	// no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
 	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
@@ -484,32 +524,38 @@ export function PlayPage() {
 
             {/* Incorrect Guesses Stack */}
             <div>
-              {gameState.state.incorrectCardStack.length > 0 ? (
-              	<h3 className="text-sm font-semibold mb-2">{drawStackEmpty ? `…and ${gameState.state.incorrectCardStack.length} incorrect guesses` : "…or try one of these again:"}</h3>
+							{gameState.state.incorrectCardStack.length > 0 ? (
+								<h3 className="text-sm font-semibold mb-2">
+									{drawStackEmpty ? `…and ${gameState.state.incorrectCardStack.length} incorrect guesses` : "…or try one of these again:"}
+								</h3>
 							) : ''}
-              <div className="space-y-2">
-                {gameState.state.incorrectCardStack.length > 0 ? (
-                  gameState.state.incorrectCardStack.map((card) => (
-                    <Card key={card._id} className="p-4">
-                      <h3 className="font-semibold">
-                        <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
-                          {'X'.repeat(card.strikes.length)}
-                        </span>
-                        {card.title || card.name || "Event"}
-                      </h3>
-                      {card.description && (
-                        <p className="text-sm mt-2">{card.description}</p>
-                      )}
-                    </Card>
-                  ))
-                ) : (
-                  <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-                    <p className="text-center text-muted-foreground text-sm">
-                      Incorrect cards will appear here. You can try them again.
-                    </p>
-                  </Card>
-                )}
-              </div>
+							<div className="space-y-2">
+								{gameState.state.incorrectCardStack.length > 0 ? (
+									gameState.state.incorrectCardStack.map((card) => (
+										<Card
+											key={card._id}
+											className="p-4 cursor-pointer hover:bg-muted/50"
+											onClick={() => handleRedrawCard(card)}
+										>
+											<h3 className="font-semibold">
+												<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+													{'X'.repeat(card.strikes?.length || 0)}
+												</span>
+												{card.title || card.name || "Event"}
+											</h3>
+											{card.description && (
+												<p className="text-sm mt-2">{card.description}</p>
+											)}
+										</Card>
+									))
+								) : (
+									<Card className="p-4 border-2 border-dashed border-muted-foreground/50">
+										<p className="text-center text-muted-foreground text-sm">
+											Incorrect cards will appear here. You can try them again.
+										</p>
+									</Card>
+								)}
+							</div>
             </div>
           </div>
         </div>
