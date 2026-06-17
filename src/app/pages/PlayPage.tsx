@@ -373,39 +373,42 @@ export function PlayPage() {
   return (
 		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col overflow-hidden relative`}>
 
-      {/* Compact header: title + settings + status + stats */}
-      <header className="flex-shrink-0 flex items-center gap-3 px-4 py-2 border-b border-border">
-        <h1 className="text-lg font-bold text-muted-foreground mr-2">Common Era</h1>
-
-        {/* Status pill */}
-        <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">
-          {currentPlayerName}&apos;s turn
-        </span>
-
-        {/* Stats */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground ml-1">
-          {isCollaborative ? (
-            <>
-              <span title="Timeline length">Score: {gameState.state.timelineCollaborative.length}</span>
-              <span title="Remaining events">Remaining Events: {gameState.remainingEventCount ?? 0}</span>
-              <span title="Missed guesses">Misses: {gameState.state.incorrectCardStack.length}</span>
-            </>
-          ) : (
-            gameState.players.map((player, index) => (
-              <span
-                key={player._id || index}
-                className={`px-2 py-0.5 rounded ${index === gameState.state.currentTurn ? "bg-primary/20 font-semibold" : ""}`}
-              >
-                {player.name}: {player.score ?? 0}
-              </span>
-            ))
-          )}
+      {/* Compact header: two rows on mobile, single row on desktop */}
+      <header className="flex-shrink-0 flex flex-col lg:flex-row lg:items-center lg:gap-3 px-4 py-2 border-b border-border">
+        {/* Row 1: title + settings */}
+        <div className="flex items-center">
+          <h1 className="text-lg font-bold text-muted-foreground mr-2">Common Era</h1>
+          <div className="ml-auto lg:ml-0">
+            <Button variant="ghost" size="icon">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
-        <div className="ml-auto">
-          <Button variant="ghost" size="icon">
-            <Settings className="h-4 w-4" />
-          </Button>
+        {/* Row 2 (mobile) / inline (desktop): status pill + stats */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">
+            {currentPlayerName}&apos;s turn
+          </span>
+
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {isCollaborative ? (
+              <>
+                <span title="Timeline length">Score: {gameState.state.timelineCollaborative.length}</span>
+                <span title="Remaining events">Remaining Events: {gameState.remainingEventCount ?? 0}</span>
+                <span title="Missed guesses">Misses: {gameState.state.incorrectCardStack.length}</span>
+              </>
+            ) : (
+              gameState.players.map((player, index) => (
+                <span
+                  key={player._id || index}
+                  className={`px-2 py-0.5 rounded ${index === gameState.state.currentTurn ? "bg-primary/20 font-semibold" : ""}`}
+                >
+                  {player.name}: {player.score ?? 0}
+                </span>
+              ))
+            )}
+          </div>
         </div>
       </header>
 
