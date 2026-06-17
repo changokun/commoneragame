@@ -245,7 +245,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 	})
 
 	return (
-		<div className="timeline space-y-4 overflow-y-auto pr-8">
+		<div className="timeline space-y-4 overflow-y-auto h-[calc(100vh-53px)] pr-4">
 			{items}
 		</div>
 	)
