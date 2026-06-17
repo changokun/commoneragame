@@ -42,14 +42,14 @@ function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }
 	// };
 
 	return (
-		// -scroll-my-4 huh?
 		<div className="snapper">
-			<Button 
-				variant="outline" 
+			<Button
+				variant={drawnCard ? "secondary" : "outline"}
 				size="lg"
-				className="w-full lg:max-w-xs justify-start cursor-pointer"
+				className={`w-full lg:max-w-xs justify-start transition-none ${drawnCard ? "opacity-100 cursor-pointer" : "opacity-20 pointer-events-none text-muted-foreground/50"}`}
 				data-splicestartindex={spliceStartIndex}
 				onClick={onPlace}
+				tabIndex={drawnCard ? 0 : -1}
 			>
 				{label}
 			</Button>
@@ -281,46 +281,4 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 		</div>
 	)
 
-
-		// return (
-		// 	<>
-		// 	{drawnCard?
-		// 		index == 0 ? "" : <PlacementOption key={`po${index}`} spliceStartIndex={index} before={events[index]} after={events[index - 1]} onPlace={onPlace} />
-		// 		:''}
-		// 	<div 
-		// 		key={index} 
-		// 		className="timeline-card-container"
-		// 	>
-		// 		<TimelineCard event={event} index={index} />
-		// 	</div>
-		// 	</>
-		// );
-	// })}
-
-  // return (
-  //   <div className="timeline space-y-4 overflow-y-auto">
-	// 		{drawnCard?
-	// 			<PlacementOption key={`po0`} spliceStartIndex={0} before={events[0]} onPlace={onPlace} />
-	// 			:''}
-  //     {events.map((event, index) => {
-	// 			// Add extra margin bottom for the card above the gap
-  //       return (
-	// 				<>
-	// 				{drawnCard?
-	// 					index == 0 ? "" : <PlacementOption key={`po${index}`} spliceStartIndex={index} before={events[index]} after={events[index - 1]} onPlace={onPlace} />
-	// 					:''}
-	// 				<div 
-	// 					key={index} 
-	// 					className="timeline-card-container"
-  //         >
-  //           <TimelineCard event={event} index={index} />
-  //         </div>
-	// 				</>
-  //       );
-  //     })}
-	// 		{drawnCard?
-	// 			<PlacementOption key={`po${events.length}`} spliceStartIndex={events.length} after={events[events.length - 1]} onPlace={onPlace} />
-	// 		:''}
-  //   </div>
-  // );
 }

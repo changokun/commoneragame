@@ -4,6 +4,7 @@ import { Settings, PlusCircle, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Timeline } from "../components/Timeline";
+import { GameEndScreen } from "../components/GameEndScreen";
 import { EVENT_CACHE_KEY_PREFIX } from "../constants";
 
 // Player interface: represents a player in the game
@@ -28,7 +29,7 @@ interface GameState {
     currentTurn: number;
     currentEventIndex: number;
     agreedEvents: any[];
-		incorrectCardStack: any[];
+    incorrectCardStack: any[];
     limbo?: string; // Event ID of a drawn card that hasn't been guessed yet
   };
   status: string;
@@ -39,12 +40,12 @@ interface GameState {
 export function PlayPage() {
   const { gameId: urlGameId } = useParams();
   const navigate = useNavigate();
-  
+
   // gameId is derived from URL params or localStorage and never changes
   // It's required for the page to function, so if it doesn't exist we show an error
   // We don't use useState because it's computed once and never modified
   const gameId = urlGameId || localStorage.getItem("CEcurrentGameId") || null;
-  
+
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMyTurn, setIsMyTurn] = useState(false);
@@ -53,6 +54,7 @@ export function PlayPage() {
   const [drawnCard, setDrawnCard] = useState<any>(null);
   const [newlyPlacedId, setNewlyPlacedId] = useState<string | null>(null);
   const [newlyIncorrectId, setNewlyIncorrectId] = useState<string | null>(null);
+	const [showEndScreen, setShowEndScreen] = useState(true);
 
 
   // If we have a gameId in localStorage but not in the URL, update the URL
@@ -146,26 +148,26 @@ export function PlayPage() {
         const response = await fetch(`${apiUrl}/games/${id}`);
         const data = await response.json();
 
-				// Transform any ID-only items in incorrectCardStack to full objects
-				if (data.state?.incorrectCardStack?.length > 0) {
-					data.state.incorrectCardStack = await Promise.all(
+        // Transform any ID-only items in incorrectCardStack to full objects
+        if (data.state?.incorrectCardStack?.length > 0) {
+          data.state.incorrectCardStack = await Promise.all(
 						data.state.incorrectCardStack.map(async (cardOrId) => {
 							if(typeof cardOrId === 'string') {
-								return await getEventById(cardOrId);
+                  return await getEventById(cardOrId);
 							} else if(cardOrId.title) {
-								return cardOrId;
+                  return cardOrId;
 							} else if(cardOrId.eventId) {
 									console.log('cardOrId', cardOrId)
 									const event = await getEventById(cardOrId.eventId)
 									console.log('event', event)
 									event.strikes = cardOrId.strikes ? cardOrId.strikes : [];
 									console.log('event', event)
-									return event;
-								}
+                  return event;
+                }
 							}
 						)
-					);
-				}
+          );
+        }
         setGameState(data);
         // Store game ID in localStorage for future visits
         localStorage.setItem("CEcurrentGameId", id);
@@ -179,10 +181,10 @@ export function PlayPage() {
 					console.log('limboEvent', limboEvent)
           if (limboEvent) {
             setDrawnCard(limboEvent);
-						// in this case, the game data we just got should be correct as to gameState.remainingEventCount
+            // in this case, the game data we just got should be correct as to gameState.remainingEventCount
           }
         }
-        
+
         setIsLoading(false);
       } catch (error) {
         console.error("Failed to fetch game state:", error);
@@ -241,8 +243,8 @@ export function PlayPage() {
         <div className="text-center space-y-4">
           <p className="text-muted-foreground">Game not found</p>
           <Button onClick={() => {
-            localStorage.removeItem("CEcurrentGameId");
-            navigate("/play");
+              localStorage.removeItem("CEcurrentGameId");
+              navigate("/play");
           }}>
             Clear and Return
           </Button>
@@ -260,48 +262,48 @@ export function PlayPage() {
     if (!gameId) return;
 
     setIsPaused(true);
-    
+
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
       const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
       const data = await response.json();
 
       if (response.ok && data.date && data.title) {
-				// data is already the full event. cache it, and continue.
-				// We have the full event, cache it directly
-				const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
-				const cachedData: Record<string, any> = JSON.parse(
+        // data is already the full event. cache it, and continue.
+        // We have the full event, cache it directly
+        const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+        const cachedData: Record<string, any> = JSON.parse(
 					localStorage.getItem(cacheKey) || "{}"
-				);
-				cachedData[data._id] = data;
+        );
+        cachedData[data._id] = data;
 				localStorage.setItem(cacheKey, JSON.stringify(cachedData));
-				setDrawnCard(data);
-				setGameState({
-					...gameState,
+        setDrawnCard(data);
+        setGameState({
+          ...gameState,
 					remainingEventCount: (gameState?.remainingEventCount || 1) - 1
-				});
+        });
 
-			} else if (data._id) {
-				// Only have the ID, need to fetch the full event
-				const fullEvent = await getEventById(data._id);
-				if (fullEvent) {
-					// Use the full event from the cache/API
-					setDrawnCard(fullEvent);
-					setGameState({
-						...gameState,
+      } else if (data._id) {
+        // Only have the ID, need to fetch the full event
+        const fullEvent = await getEventById(data._id);
+        if (fullEvent) {
+          // Use the full event from the cache/API
+          setDrawnCard(fullEvent);
+          setGameState({
+            ...gameState,
 						remainingEventCount: (gameState?.remainingEventCount || 1) - 1
-					});
-				}
-			} else if (data.message) {
+          });
+        }
+      } else if (data.message) {
 				if(data.message.indexOf('o events') !== -1) {
 
-				} else {
+        } else {
 					console.error("Unexpected message from draw endpoint:", data);
-				}
-			} else {
+        }
+      } else {
 				console.error("Unexpected response from draw endpoint:", data);
-				setIsPaused(false);
-			}
+        setIsPaused(false);
+      }
 
        
     } catch (err) {
@@ -310,14 +312,14 @@ export function PlayPage() {
     }
   };
 
-	// Helper function to report a move to the server
-	// Used by both handleCorrectMove and handleIncorrectMove to avoid code duplication
-	// @param eventId - The ID of the event that was placed
-	// @param success - Whether the placement was correct
+  // Helper function to report a move to the server
+  // Used by both handleCorrectMove and handleIncorrectMove to avoid code duplication
+  // @param eventId - The ID of the event that was placed
+  // @param success - Whether the placement was correct
 	const reportMove = async (eventId: string, success: boolean): Promise<Response | null> => {
-		if (!gameId || !gameState) return null;
-		
-		try {
+    if (!gameId || !gameState) return null;
+
+    try {
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const playerId = gameState.players[gameState.state.currentTurn]?._id || gameState.state.currentTurn;
 			const response = await fetch(`${apiUrl}/games/${gameId}/player/${playerId}`, {
@@ -325,113 +327,116 @@ export function PlayPage() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ eventId, success })
 			});
-			return response;
-		} catch (error) {
-			console.error("Failed to report move:", error);
-			return null;
-		}
-	};
+      return response;
+    } catch (error) {
+      console.error("Failed to report move:", error);
+      return null;
+    }
+  };
 
-	const handleCorrectMove = async () => {
+  const handleCorrectMove = async () => {
 		console.log("CORRECT YAY")
-		
-		// Store the drawn card ID before clearing it, so we can use it below
-		const drawnCardId = drawnCard._id;
-		
-		// Update the timeline immediately with the new event ID
-		// This ensures the UI updates right away, before the API call
-		setGameState({
+
+    // Store the drawn card ID before clearing it, so we can use it below
+    const drawnCardId = drawnCard._id;
+
+    // Update the timeline immediately with the new event ID
+    // This ensures the UI updates right away, before the API call
+    setGameState({
 			...gameState,                         // Copy all top-level properties
-			state: {
+      state: {
 				...gameState.state,                 // Copy all state properties
 				timelineCollaborative: [...gameState.state.timelineCollaborative, drawnCardId]
 			}
-		});
-		
-		setDrawnCard(null);
-		setIsPaused(false);
-		setNewlyPlacedId(drawnCardId);
-		setTimeout(() => setNewlyPlacedId(null), 6000);
+    });
 
-		// Report the successful move to the server
-		const response = await reportMove(drawnCardId, true);
-		if (response?.ok) {
-			// Success - event was recorded on the server
-		}
+    setDrawnCard(null);
+    setIsPaused(false);
+    setNewlyPlacedId(drawnCardId);
+    setTimeout(() => setNewlyPlacedId(null), 6000);
+
+    // Report the successful move to the server
+    const response = await reportMove(drawnCardId, true);
+    if (response?.ok) {
+      // Success - event was recorded on the server
+    }
 	}
-	
-	const handleIncorrectMove = () => {
+
+  const handleIncorrectMove = () => {
 		console.log("WRONG BOOOO")
-		// Store the drawn card ID before clearing it, so we can use it below
-		const drawnCardId = drawnCard._id;
+    // Store the drawn card ID before clearing it, so we can use it below
+    const drawnCardId = drawnCard._id;
 		const playerId = gameState.players[gameState.state.currentTurn]?._id || gameState.state.currentTurn;
 		if(drawnCard.strikes) {
 			drawnCard.strikes.push(playerId)
-		} else {
-			drawnCard.strikes = [playerId];
-		}
+    } else {
+      drawnCard.strikes = [playerId];
+    }
 
-		setGameState({
-			...gameState,
-			state: {
-				...gameState.state,
+    setGameState({
+      ...gameState,
+      state: {
+        ...gameState.state,
 				incorrectCardStack: [...gameState.state.incorrectCardStack, drawnCard]
 			}
-		});
+    });
 
-		setDrawnCard(null);
-		setIsPaused(false);
-		setNewlyIncorrectId(drawnCardId);
-		setTimeout(() => setNewlyIncorrectId(null), 6000);
+    setDrawnCard(null);
+    setIsPaused(false);
+    setNewlyIncorrectId(drawnCardId);
+    setTimeout(() => setNewlyIncorrectId(null), 6000);
 
-		// Report the incorrect move to the server
-		reportMove(drawnCardId, false);
+    // Report the incorrect move to the server
+    reportMove(drawnCardId, false);
 	}
 
-	// Helper function to redraw a card from the incorrect stack
-	// Called when user clicks on an incorrect card instead of a random draw
-	const handleRedrawCard = async (card: any) => {
-		if (!gameId || !gameState) return;
+  // Helper function to redraw a card from the incorrect stack
+  // Called when user clicks on an incorrect card instead of a random draw
+  const handleRedrawCard = async (card: any) => {
+    if (!gameId || !gameState) return;
 
 		console.log('user wants this card again', card)
-		setIsPaused(true);
-	
-		// Call API to redraw this specific event
-		try {
+    setIsPaused(true);
+
+    // Call API to redraw this specific event
+    try {
 			
-			// Remove from incorrect stack
+      // Remove from incorrect stack
 			const newIncorrectStack = gameState.state.incorrectCardStack.filter(
 				(c: any) => c._id !== card._id
-			);
-			
-			// Set as drawn card and update state
-			setGameState({
-				...gameState,
-				state: {
-					...gameState.state,
+        );
+
+      // Set as drawn card and update state
+      setGameState({
+        ...gameState,
+        state: {
+          ...gameState.state,
 					incorrectCardStack: newIncorrectStack
 				}
-			});
-			setDrawnCard(card);
-			
+      });
+      setDrawnCard(card);
+
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const response = await fetch(`${apiUrl}/games/${gameId}/draw/${card._id}`, {
 				method: 'POST'
 			});
-			if (response.status === 201) {
+      if (response.status === 201) {
 
-			}
-		} catch (error) {
-			console.error("Failed to redraw card:", error);
-		}
-	};
+      }
+    } catch (error) {
+      console.error("Failed to redraw card:", error);
+    }
+  };
 
 
 
 	console.log('gameState', gameState)
-	// no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
+  // no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
 	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
+  const isGameOver = true; //["complete", "finished", "won", "lost", "victory", "defeat", "ended"].includes(gameState.status);
+  const isVictory = false; // ["complete", "finished", "won", "victory"].includes(gameState.status);
 
+	
   return (
 		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col overflow-hidden relative`}>
 
@@ -439,8 +444,15 @@ export function PlayPage() {
       <header className="flex-shrink-0 flex flex-col lg:flex-row lg:items-center lg:gap-3 px-4 py-2 border-b border-border">
         {/* Row 1: title + settings */}
         <div className="flex items-center">
-          <h1 className="text-lg font-bold text-muted-foreground mr-2">Common Era</h1>
-          <div className="ml-auto lg:ml-0">
+          <h1 className="text-lg font-bold text-muted-foreground mr-2">
+            Common Era
+          </h1>
+          <div className="ml-auto lg:ml-0 flex items-center gap-1">
+            {isGameOver && !showEndScreen && (
+              <Button variant="outline" size="sm" onClick={() => setShowEndScreen(true)}>
+                Results
+              </Button>
+            )}
             <Button variant="ghost" size="icon">
               <Settings className="h-4 w-4" />
             </Button>
@@ -476,129 +488,140 @@ export function PlayPage() {
 
       {/* Main game area */}
       <div className="flex-1 flex justify-center overflow-hidden relative">
-      <div className="w-full max-w-[1200px] flex flex-col lg:flex-row overflow-hidden relative">
-      {/* Desktop: Left Column - Timeline */}
-      {/* Mobile Waiting: Stacked section */}
+        <div className="w-full max-w-[1200px] flex flex-col lg:flex-row overflow-hidden relative">
+          {/* Desktop: Left Column - Timeline */}
+          {/* Mobile Waiting: Stacked section */}
       <div className={`flex flex-col h-[calc(100vh-53px)] lg:max-w-[800px] lg:flex-1 relative z-20`}>
-        {/* <div className="p-4 pb-0">
+            {/* <div className="p-4 pb-0">
           <h2 className="text-xl font-semibold">Timeline</h2>
           <p className="text-sm text-muted-foreground">
             {isCollaborative ? "Shared Timeline" : "Your Timeline"}
           </p>
         </div> */}
 
-        {/* Timeline Cards - scrollable container */}
-        {/* <div className="flex-1 p-4 pt-0"> */}
-          <Timeline
-            events={gameState.state.timelineCollaborative}
-            gameId={gameId}
-						drawnCard={drawnCard}
-						handleCorrectMove={handleCorrectMove}
-						handleIncorrectMove={handleIncorrectMove}
-						newlyPlacedId={newlyPlacedId}
-          />
-        {/* </div> */}
+            {/* Timeline Cards - scrollable container */}
+            {/* <div className="flex-1 p-4 pt-0"> */}
+            <Timeline
+              events={gameState.state.timelineCollaborative}
+              gameId={gameId}
+              drawnCard={drawnCard}
+              handleCorrectMove={handleCorrectMove}
+              handleIncorrectMove={handleIncorrectMove}
+              newlyPlacedId={newlyPlacedId}
+            />
+            {/* </div> */}
 
-        {/* Drawn Card - absolutely positioned over right middle of timeline */}
-        {drawnCard && (
-          <Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
-            <div className="p-4">
+            {/* Drawn Card - absolutely positioned over right middle of timeline */}
+            {drawnCard && (
+              <Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
+                <div className="p-4">
               <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>{drawnCard.title || drawnCard.name || "Event"}</h3>
-              {drawnCard.description && (
+                  {drawnCard.description && (
                 <p className="text-sm mt-2">{drawnCard.description}</p>
-              )}
-            </div>
-          </Card>
-        )}
-      </div>
+                  )}
+                </div>
+              </Card>
+            )}
+          </div>
 
-      {/* Desktop: Middle Column - Draw + Incorrect Stack */}
-      {/* Mobile Waiting: Stacked section */}
-      {!isMyTurn && (
+          {/* Desktop: Middle Column - Draw + Incorrect Stack */}
+          {/* Mobile Waiting: Stacked section */}
+          {!isMyTurn && (
         <div className={`w-full lg:max-w-[400px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
-          <div className="space-y-4">
-            {/* Draw Button */}
-            <div>
-              <Button 
-                className="w-full" 
-                size="lg" 
-                onClick={handleDrawCard}
-                disabled={isPaused || drawStackEmpty}
-              >
+              <div className="space-y-4">
+                {/* Draw Button */}
+                <div>
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={handleDrawCard}
+                    disabled={isPaused || drawStackEmpty}
+                  >
                 {drawStackEmpty ? "No More Events" : "Draw New Event…"}
-              </Button>
-            </div>
+                  </Button>
+                </div>
 
-            {/* Incorrect Guesses Stack */}
-            <div>
+                {/* Incorrect Guesses Stack */}
+                <div>
 							{gameState.state.incorrectCardStack.length > 0 ? (
-								<h3 className="text-sm font-semibold mb-2">
+                    <h3 className="text-sm font-semibold mb-2">
 									{drawStackEmpty ? `…and ${gameState.state.incorrectCardStack.length} incorrect guesses` : "…or try one of these again:"}
-								</h3>
+                    </h3>
 							) : ''}
-							<div className="space-y-2">
+                  <div className="space-y-2">
 								{gameState.state.incorrectCardStack.length > 0 ? (
 									gameState.state.incorrectCardStack.map((card) => (
 										<div key={card._id} className="relative" style={{ isolation: "isolate" }}>
-											{newlyIncorrectId === card._id && (
+                            {newlyIncorrectId === card._id && (
 												<div className="starburst starburst--incorrect" aria-hidden="true" />
-											)}
-											<div className="relative z-10">
-												<Card
-													className="p-4 cursor-pointer hover:bg-muted/50"
+                            )}
+                            <div className="relative z-10">
+                              <Card
+                                className="p-4 cursor-pointer hover:bg-muted/50"
 													onClick={() => handleRedrawCard(card)}
-												>
-													<h3 className="font-semibold">
-														<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+                              >
+                                <h3 className="font-semibold">
+                                  <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
 															{'X'.repeat(card.strikes?.length || 0)}
-														</span>
+                                  </span>
 														{card.title || card.name || "Event"}
-													</h3>
-													{card.description && (
+                                </h3>
+                                {card.description && (
 														<p className="text-sm mt-2">{card.description}</p>
-													)}
-												</Card>
-											</div>
-										</div>
+                                )}
+                              </Card>
+                            </div>
+                          </div>
 									))
-								) : (
-									<Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-										<p className="text-center text-muted-foreground text-sm">
+                    ) : (
+                      <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
+                        <p className="text-center text-muted-foreground text-sm">
 											Incorrect cards will appear here. You can try them again.
-										</p>
-									</Card>
-								)}
-							</div>
+                        </p>
+                      </Card>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Active Turn View - Simplified (Mobile) or Overlay (Desktop) */}
-      {isMyTurn && activeCard && (
-        <div className="absolute inset-0 bg-background z-50 lg:relative lg:z-auto">
-          <div className="h-full flex">
-            {/* Timeline (scrollable) */}
-            <div className="flex-1 overflow-y-auto p-4">
-              <p className="text-center text-muted-foreground">
-                Timeline with active card interaction
-              </p>
-            </div>
+          {/* Active Turn View - Simplified (Mobile) or Overlay (Desktop) */}
+          {isMyTurn && activeCard && (
+            <div className="absolute inset-0 bg-background z-50 lg:relative lg:z-auto">
+              <div className="h-full flex">
+                {/* Timeline (scrollable) */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  <p className="text-center text-muted-foreground">
+                    Timeline with active card interaction
+                  </p>
+                </div>
 
-            {/* Active Card (fixed position, overlapping) */}
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 w-48 lg:w-64">
-              <Card className="p-4 shadow-2xl border-primary border-2">
+                {/* Active Card (fixed position, overlapping) */}
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-48 lg:w-64">
+                  <Card className="p-4 shadow-2xl border-primary border-2">
                 <p className="text-center font-medium">Active Event Card</p>
-                <p className="text-center text-sm text-muted-foreground mt-2">
-                  Scroll timeline to position
-                </p>
-              </Card>
+                    <p className="text-center text-sm text-muted-foreground mt-2">
+                      Scroll timeline to position
+                    </p>
+                  </Card>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
       </div> {/* end 1200px container */}
       </div> {/* end main game area */}
+      {isGameOver && showEndScreen && (
+        <GameEndScreen
+          isVictory={isVictory}
+          gameMode={gameState.gameMode}
+          players={gameState.players}
+          timelineLenth={gameState.state.timelineCollaborative.length}
+          incorrectCount={gameState.state.incorrectCardStack.length}
+          remainingEvents={gameState.remainingEventCount ?? 0}
+          onViewTimeline={() => setShowEndScreen(false)}
+        />
+      )}
     </div>
   );
 }
