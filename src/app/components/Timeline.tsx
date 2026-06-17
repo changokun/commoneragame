@@ -63,6 +63,7 @@ interface TimelineProps {
 	drawnCard: any | null;
 	handleCorrectMove?: any;
 	handleIncorrectMove?: any;
+	newlyPlacedId?: string | null;
 	onPlace?: (placement: { after: string | null; before: string | null }) => void;
 }
 
@@ -86,7 +87,7 @@ function doNotDoAnything() {
 	console.log('nuttin doin')
 }
 
-export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMove, handleIncorrectMove }: TimelineProps) {
+export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMove, handleIncorrectMove, newlyPlacedId }: TimelineProps) {
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -243,12 +244,18 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 	)
 
 	events.forEach((event, index) => {
+		const isNew = event._id === newlyPlacedId;
 		items.push(
-			<div 
-				key={index} 
-				className="timeline-card-container"
+			<div
+				key={index}
+				className="timeline-card-container relative"
 			>
-				<TimelineCard event={event} index={index} />
+				{isNew && (
+					<div className="starburst" aria-hidden="true" />
+				)}
+				<div className="relative z-10">
+					<TimelineCard event={event} index={index} />
+				</div>
 			</div>
 		)
 		

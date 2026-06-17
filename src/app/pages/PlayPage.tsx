@@ -51,6 +51,8 @@ export function PlayPage() {
   const [activeCard, setActiveCard] = useState<any>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [drawnCard, setDrawnCard] = useState<any>(null);
+  const [newlyPlacedId, setNewlyPlacedId] = useState<string | null>(null);
+  const [newlyIncorrectId, setNewlyIncorrectId] = useState<string | null>(null);
 
 
   // If we have a gameId in localStorage but not in the URL, update the URL
@@ -348,7 +350,9 @@ export function PlayPage() {
 		
 		setDrawnCard(null);
 		setIsPaused(false);
-		
+		setNewlyPlacedId(drawnCardId);
+		setTimeout(() => setNewlyPlacedId(null), 6000);
+
 		// Report the successful move to the server
 		const response = await reportMove(drawnCardId, true);
 		if (response?.ok) {
@@ -377,7 +381,9 @@ export function PlayPage() {
 
 		setDrawnCard(null);
 		setIsPaused(false);
-		
+		setNewlyIncorrectId(drawnCardId);
+		setTimeout(() => setNewlyIncorrectId(null), 6000);
+
 		// Report the incorrect move to the server
 		reportMove(drawnCardId, false);
 	}
@@ -483,12 +489,13 @@ export function PlayPage() {
 
         {/* Timeline Cards - scrollable container */}
         {/* <div className="flex-1 p-4 pt-0"> */}
-          <Timeline 
-            events={gameState.state.timelineCollaborative} 
+          <Timeline
+            events={gameState.state.timelineCollaborative}
             gameId={gameId}
 						drawnCard={drawnCard}
 						handleCorrectMove={handleCorrectMove}
 						handleIncorrectMove={handleIncorrectMove}
+						newlyPlacedId={newlyPlacedId}
           />
         {/* </div> */}
 
@@ -532,21 +539,27 @@ export function PlayPage() {
 							<div className="space-y-2">
 								{gameState.state.incorrectCardStack.length > 0 ? (
 									gameState.state.incorrectCardStack.map((card) => (
-										<Card
-											key={card._id}
-											className="p-4 cursor-pointer hover:bg-muted/50"
-											onClick={() => handleRedrawCard(card)}
-										>
-											<h3 className="font-semibold">
-												<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
-													{'X'.repeat(card.strikes?.length || 0)}
-												</span>
-												{card.title || card.name || "Event"}
-											</h3>
-											{card.description && (
-												<p className="text-sm mt-2">{card.description}</p>
+										<div key={card._id} className="relative" style={{ isolation: "isolate" }}>
+											{newlyIncorrectId === card._id && (
+												<div className="starburst starburst--incorrect" aria-hidden="true" />
 											)}
-										</Card>
+											<div className="relative z-10">
+												<Card
+													className="p-4 cursor-pointer hover:bg-muted/50"
+													onClick={() => handleRedrawCard(card)}
+												>
+													<h3 className="font-semibold">
+														<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+															{'X'.repeat(card.strikes?.length || 0)}
+														</span>
+														{card.title || card.name || "Event"}
+													</h3>
+													{card.description && (
+														<p className="text-sm mt-2">{card.description}</p>
+													)}
+												</Card>
+											</div>
+										</div>
 									))
 								) : (
 									<Card className="p-4 border-2 border-dashed border-muted-foreground/50">
