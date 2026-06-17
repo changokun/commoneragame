@@ -414,7 +414,7 @@ export function PlayPage() {
       <div className="w-full max-w-[1200px] flex flex-col lg:flex-row overflow-hidden relative">
       {/* Desktop: Left Column - Timeline */}
       {/* Mobile Waiting: Stacked section */}
-      <div className={`flex flex-col lg:max-w-[800px] lg:flex-1 relative z-20`}>
+      <div className={`flex flex-col h-[calc(100vh-53px)] lg:max-w-[800px] lg:flex-1 relative z-20`}>
         {/* <div className="p-4 pb-0">
           <h2 className="text-xl font-semibold">Timeline</h2>
           <p className="text-sm text-muted-foreground">

@@ -225,6 +225,19 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 
 	// so that we can have keys on things, and fewer <>s.
 	let items = []
+
+	
+	// add one more timeline card container with no content, to help with scroll positions.
+	items.push(
+		<div 
+			key={999991} 
+			className="timeline-card-container min-h-screen"
+		>
+			
+		</div>
+	)
+
+	
 	items.push(
 		<PlacementOption key={`po-1`} spliceStartIndex={0} before={events[0]} drawnCard={drawnCard} onPlace={drawnCard && correctPosition === 0 ? handleCorrectMove : onPlace} />
 	)
@@ -238,13 +251,24 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 				<TimelineCard event={event} index={index} />
 			</div>
 		)
-
+		
 		items.push(
 			<PlacementOption key={`po${index}`} spliceStartIndex={index + 1} before={events[index + 1]} after={events[index]} drawnCard={drawnCard} onPlace={drawnCard && correctPosition === index + 1 ? handleCorrectMove : onPlace} />
 		)
 	})
+	
+	// add one more timeline card container with no content, to help with scroll positions.
+	items.push(
+		<div 
+			key={999919} 
+			className="timeline-card-container min-h-screen"
+		>
+			
+		</div>
+	)
 
 	return (
+		// the height on this seems to be unimportant, but we may want it if we add a fixed footer.
 		<div className="timeline space-y-4 overflow-y-auto h-[calc(100vh-53px)] pr-4">
 			{items}
 		</div>
