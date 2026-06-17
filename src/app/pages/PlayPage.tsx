@@ -371,10 +371,50 @@ export function PlayPage() {
 	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
 
   return (
-		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col lg:flex-row overflow-hidden relative`}>
+		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col overflow-hidden relative`}>
+
+      {/* Compact header: title + settings + status + stats */}
+      <header className="flex-shrink-0 flex items-center gap-3 px-4 py-2 border-b border-border">
+        <h1 className="text-lg font-bold text-muted-foreground mr-2">Common Era</h1>
+
+        {/* Status pill */}
+        <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">
+          {currentPlayerName}&apos;s turn
+        </span>
+
+        {/* Stats */}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground ml-1">
+          {isCollaborative ? (
+            <>
+              <span title="Timeline length">📅 {gameState.state.timelineCollaborative.length}</span>
+              <span title="Remaining events">🃏 {gameState.remainingEventCount ?? 0}</span>
+              <span title="Missed guesses">❌ {gameState.state.incorrectCardStack.length}</span>
+            </>
+          ) : (
+            gameState.players.map((player, index) => (
+              <span
+                key={player._id || index}
+                className={`px-2 py-0.5 rounded ${index === gameState.state.currentTurn ? "bg-primary/20 font-semibold" : ""}`}
+              >
+                {player.name}: {player.score ?? 0}
+              </span>
+            ))
+          )}
+        </div>
+
+        <div className="ml-auto">
+          <Button variant="ghost" size="icon">
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+
+      {/* Main game area */}
+      <div className="flex-1 flex justify-center overflow-hidden relative">
+      <div className="w-full max-w-[1200px] flex flex-col lg:flex-row overflow-hidden relative">
       {/* Desktop: Left Column - Timeline */}
       {/* Mobile Waiting: Stacked section */}
-      <div className={`flex flex-col h-[calc(100vh-120px)] ${isMyTurn ? "lg:flex-1" : ""} relative z-20`}>
+      <div className={`flex flex-col h-[calc(100vh-120px)] lg:max-w-[800px] lg:flex-1 relative z-20`}>
         {/* <div className="p-4 pb-0">
           <h2 className="text-xl font-semibold">Timeline</h2>
           <p className="text-sm text-muted-foreground">
@@ -409,7 +449,7 @@ export function PlayPage() {
       {/* Desktop: Middle Column - Draw + Incorrect Stack */}
       {/* Mobile Waiting: Stacked section */}
       {!isMyTurn && (
-        <div className={`w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
+        <div className={`w-full lg:max-w-[400px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
           <div className="space-y-4">
             {/* Draw Button */}
             <div>
@@ -456,71 +496,6 @@ export function PlayPage() {
         </div>
       )}
 
-      {/* Desktop: Right Column - Player Info & Stats */}
-      {/* Mobile Waiting: Stacked section */}
-      {!isMyTurn && (
-        <div className={`w-full lg:w-64 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
-          <div className="space-y-4">
-            {/* Settings */}
-            <div className="flex justify-end">
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-              </Button>
-            </div>
-
-            {/* Status/Prompt */}
-            <div className="bg-muted p-3 rounded-lg">
-              <p className="text-sm font-medium">Waiting for {currentPlayerName} to play...</p>
-            </div>
-
-            {/* Collaborative Stats or Player List */}
-            {isCollaborative ? (
-              <div>
-                <h3 className="text-sm font-semibold mb-2">Game Stats</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Timeline Length:</span>
-                    <span className="font-medium">{gameState.state.timelineCollaborative.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Remaining Events:</span>
-                    <span className="font-medium">{gameState.remainingEventCount || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Missed Guesses:</span>
-                    <span className="font-medium">0</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <h3 className="text-sm font-semibold mb-2">Players</h3>
-                {/* Render player list from players array instead of playerNames */}
-                <div className="space-y-2">
-                  {gameState.players.map((player, index) => (
-                    <div
-                      key={player._id || index}
-                      className={`p-2 rounded ${
-                        index === gameState.state.currentTurn
-                          ? "bg-primary/10 border border-primary"
-                          : "bg-muted"
-                      }`}
-                    >
-                      <div className="flex justify-between items-center">
-                        {/* Use player.name from the Player object */}
-                        <span className="font-medium">{player.name}</span>
-                        {/* Use player.score from the Player object, default to 0 */}
-                        <span className="text-sm text-muted-foreground">Score: {player.score || 0}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Active Turn View - Simplified (Mobile) or Overlay (Desktop) */}
       {isMyTurn && activeCard && (
         <div className="absolute inset-0 bg-background z-50 lg:relative lg:z-auto">
@@ -544,6 +519,8 @@ export function PlayPage() {
           </div>
         </div>
       )}
+      </div> {/* end 1200px container */}
+      </div> {/* end main game area */}
     </div>
   );
 }

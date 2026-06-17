@@ -9,11 +9,13 @@ export function RootLayout() {
   return (
     <ThemeProvider>
       <div className="{isPlayPage && 'h-screen'} overflow-hidden flex flex-col bg-background text-foreground">
-        <header className="w-full px-6 py-4 flex-shrink-0">
-          <h1 className="text-3xl font-bold text-muted-foreground">Common Era</h1>
-        </header>
+        {!isPlayPage && (
+          <header className="w-full px-6 py-4 flex-shrink-0">
+            <h1 className="text-3xl font-bold text-muted-foreground">Common Era</h1>
+          </header>
+        )}
 
-        <main className="flex-1 flex flex-col px-6 py-8 overflow-hidden">
+        <main className={`flex-1 flex flex-col overflow-hidden ${!isPlayPage ? "px-6 py-8" : ""}`}>
           <Outlet />
         </main>
 
