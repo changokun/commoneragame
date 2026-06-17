@@ -386,9 +386,9 @@ export function PlayPage() {
         <div className="flex items-center gap-3 text-xs text-muted-foreground ml-1">
           {isCollaborative ? (
             <>
-              <span title="Timeline length">📅 {gameState.state.timelineCollaborative.length}</span>
-              <span title="Remaining events">🃏 {gameState.remainingEventCount ?? 0}</span>
-              <span title="Missed guesses">❌ {gameState.state.incorrectCardStack.length}</span>
+              <span title="Timeline length">Score: {gameState.state.timelineCollaborative.length}</span>
+              <span title="Remaining events">Remaining Events: {gameState.remainingEventCount ?? 0}</span>
+              <span title="Missed guesses">Misses: {gameState.state.incorrectCardStack.length}</span>
             </>
           ) : (
             gameState.players.map((player, index) => (
@@ -414,7 +414,7 @@ export function PlayPage() {
       <div className="w-full max-w-[1200px] flex flex-col lg:flex-row overflow-hidden relative">
       {/* Desktop: Left Column - Timeline */}
       {/* Mobile Waiting: Stacked section */}
-      <div className={`flex flex-col h-[calc(100vh-120px)] lg:max-w-[800px] lg:flex-1 relative z-20`}>
+      <div className={`flex flex-col lg:max-w-[800px] lg:flex-1 relative z-20`}>
         {/* <div className="p-4 pb-0">
           <h2 className="text-xl font-semibold">Timeline</h2>
           <p className="text-sm text-muted-foreground">
