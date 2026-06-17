@@ -68,7 +68,7 @@ export function PlayPage() {
     if (!gameId) return null;
 
     // Build cache key using the game ID
-    // Matches the cache key format used in Timeline.tsx: CE-game-event-cache-{gameId}
+    // Matches the cache key format used in Timeline.tsx
     const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
     const cachedData: Record<string, any> = JSON.parse(
       localStorage.getItem(cacheKey) || "{}"
@@ -155,6 +155,7 @@ export function PlayPage() {
 					console.log('limboEvent', limboEvent)
           if (limboEvent) {
             setDrawnCard(limboEvent);
+						// in this case, the game data we just got should be correct as to gameState.remainingEventCount
           }
         }
         
@@ -240,45 +241,73 @@ export function PlayPage() {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era/';
       const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
       const data = await response.json();
+			console.log('just got this from api', data)
 
-      if (response.ok && Array.isArray(data) && data.length > 0) {
-        let drawnEvent = data[0];
-        console.log('just got this from api', drawnEvent)
-        // Check if we got a full event object or just an ID
-        // If the API returns a full event with date, title, description, etc.,
-        // cache it directly. Otherwise, fetch the full event using the ID.
-        if (drawnEvent._id) {
-          // Check if this is a full event object (has date, title, or description)
-          const isFullEvent = drawnEvent.date || drawnEvent.title || drawnEvent.description;
-          
-          if (isFullEvent) {
-            // We have the full event, cache it directly
-            const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
-            const cachedData: Record<string, any> = JSON.parse(
-              localStorage.getItem(cacheKey) || "{}"
-            );
-            cachedData[drawnEvent._id] = drawnEvent;
-            localStorage.setItem(cacheKey, JSON.stringify(cachedData));
-          } else {
-            // Only have the ID, need to fetch the full event
-            const fullEvent = await getEventById(drawnEvent._id);
-            if (fullEvent) {
-              // Use the full event from the cache/API
-              drawnEvent = fullEvent;
-            }
-          }
-        }
-        
-        setDrawnCard(drawnEvent);
-      } else {
-        console.error("Unexpected response from draw endpoint:", data);
-        setIsPaused(false);
-      }
+      if (response.ok && data.date && data.title) {
+				// data is already the full event. cache it, and continue.
+				// We have the full event, cache it directly
+				const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+				const cachedData: Record<string, any> = JSON.parse(
+					localStorage.getItem(cacheKey) || "{}"
+				);
+				cachedData[data._id] = data;
+				localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+				setDrawnCard(data);
+				setGameState({
+					...gameState,
+					remainingEventCount: (gameState?.remainingEventCount || 1) - 1
+				});
+
+			} else if (data._id) {
+				// Only have the ID, need to fetch the full event
+				const fullEvent = await getEventById(data._id);
+				if (fullEvent) {
+					// Use the full event from the cache/API
+					setDrawnCard(fullEvent);
+					setGameState({
+						...gameState,
+						remainingEventCount: (gameState?.remainingEventCount || 1) - 1
+					});
+				}
+			} else if (data.message) {
+				if(data.message.indexOf('o events') !== -1) {
+
+				} else {
+					console.error("Unexpected message from draw endpoint:", data);
+				}
+			} else {
+				console.error("Unexpected response from draw endpoint:", data);
+				setIsPaused(false);
+			}
+
+       
     } catch (err) {
       console.error("Failed to draw card:", err);
       setIsPaused(false);
     }
   };
+
+	// Helper function to report a move to the server
+	// Used by both handleCorrectMove and handleIncorrectMove to avoid code duplication
+	// @param eventId - The ID of the event that was placed
+	// @param success - Whether the placement was correct
+	const reportMove = async (eventId: string, success: boolean): Promise<Response | null> => {
+		if (!gameId || !gameState) return null;
+		
+		try {
+			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+			const playerId = gameState.players[gameState.state.currentTurn]?._id || gameState.state.currentTurn;
+			const response = await fetch(`${apiUrl}/games/${gameId}/player/${playerId}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ eventId, success })
+			});
+			return response;
+		} catch (error) {
+			console.error("Failed to report move:", error);
+			return null;
+		}
+	};
 
 	const handleCorrectMove = async () => {
 		console.log("CORRECT YAY")
@@ -288,37 +317,35 @@ export function PlayPage() {
 		
 		// Update the timeline immediately with the new event ID
 		// This ensures the UI updates right away, before the API call
-		gameState.state.timelineCollaborative = [...gameState.state.timelineCollaborative, drawnCardId];
+		setGameState({
+			...gameState,                         // Copy all top-level properties
+			state: {
+				...gameState.state,                 // Copy all state properties
+				timelineCollaborative: [...gameState.state.timelineCollaborative, drawnCardId]
+			}
+		});
 		
 		setDrawnCard(null);
 		setIsPaused(false);
 		
-		try {
-			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-			const playerId = gameState.players[gameState.state.currentTurn]?._id || gameState.state.currentTurn;
-			const response = await fetch(`${apiUrl}/games/${gameId}/player/${playerId}`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ eventId: drawnCardId, success: true })
-			});
-			console.log('response', response)
-			if (response.ok) {
-				// Success - event was recorded on the server
-			}
-		} catch (error) {
-			console.error("Failed to report correct move:", error);
-			// Note: We already updated the UI optimistically above
-			// The API call failure doesn't revert the UI change
+		// Report the successful move to the server
+		const response = await reportMove(drawnCardId, true);
+		if (response?.ok) {
+			// Success - event was recorded on the server
 		}
 	}
 	
 	const handleIncorrectMove = () => {
 		console.log("WRONG BOOOO")
+		// Store the drawn card ID before clearing it, so we can use it below
+		const drawnCardId = drawnCard._id;
 		drawnCard.strikeCount = drawnCard.strikeCount++ || 1;
-		gameState.state.incorrectCardStack = [...gameState.state.incorrectCardStack, drawnCard]
-		setDrawnCard(null)
-		setIsPaused(false)
-		// report to api
+		gameState.state.incorrectCardStack = [...gameState.state.incorrectCardStack, drawnCard];
+		setDrawnCard(null);
+		setIsPaused(false);
+		
+		// Report the incorrect move to the server
+		reportMove(drawnCardId, false);
 	}
 
 	console.log('gameState', gameState)
