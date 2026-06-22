@@ -4,53 +4,54 @@ import { Settings, PlusCircle, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Timeline } from "../components/Timeline";
+import { StrikePlaceholderCard } from "../components/StrikePlaceholderCard";
 import { GameEndScreen } from "../components/GameEndScreen";
 import { EVENT_CACHE_KEY_PREFIX, USER_SESSION_KEY, CURRENT_GAME_KEY } from "../constants";
 import { Player, GameState, UserSession, Event } from "../types";
 
 export function PlayPage() {
-  const { gameId: urlGameId } = useParams();
-  const navigate = useNavigate();
+	const { gameId: urlGameId } = useParams();
+	const navigate = useNavigate();
 
-  // ==========================================================================
-  // GAME ID
-  // ==========================================================================
-  // gameId is derived from URL params or localStorage and never changes
-  // It's required for the page to function, so if it doesn't exist we show an error
-  // We don't use useState because it's computed once and never modified
-  const gameId = urlGameId || localStorage.getItem(CURRENT_GAME_KEY) || null;
+	// ==========================================================================
+	// GAME ID
+	// ==========================================================================
+	// gameId is derived from URL params or localStorage and never changes
+	// It's required for the page to function, so if it doesn't exist we show an error
+	// We don't use useState because it's computed once and never modified
+	const gameId = urlGameId || localStorage.getItem(CURRENT_GAME_KEY) || null;
 
 
-  // ==========================================================================
-  // USER SESSION
-  // ==========================================================================
-  // User session is GLOBAL - it represents the person in front of the screen
-  // It is NOT scoped to a specific game
-  // When a game is loaded, we match this user against the game's players array
-  // If there's a match, the user is a participant; otherwise, they're a spectator
-  const [userSession, setUserSession] = useState<UserSession | null>(null);
-  const [isLoadingSession, setIsLoadingSession] = useState(true);
+	// ==========================================================================
+	// USER SESSION
+	// ==========================================================================
+	// User session is GLOBAL - it represents the person in front of the screen
+	// It is NOT scoped to a specific game
+	// When a game is loaded, we match this user against the game's players array
+	// If there's a match, the user is a participant; otherwise, they're a spectator
+	const [userSession, setUserSession] = useState<UserSession | null>(null);
+	const [isLoadingSession, setIsLoadingSession] = useState(true);
 
-  // Flag to indicate if the current user is a spectator (not a player in this game)
-  // This is computed based on whether userSession._id matches any player in gameState.players
-  const [isSpectator, setIsSpectator] = useState(false);
+	// Flag to indicate if the current user is a spectator (not a player in this game)
+	// This is computed based on whether userSession._id matches any player in gameState.players
+	const [isSpectator, setIsSpectator] = useState(false);
 
-  // Flag to indicate if the current user is the one whose turn it is
-  // This is computed based on whether the user matches the current player
-  const [isUserTurn, setIsUserTurn] = useState(false);
+	// Flag to indicate if the current user is the one whose turn it is
+	// This is computed based on whether the user matches the current player
+	const [isUserTurn, setIsUserTurn] = useState(false);
 
-  // ==========================================================================
-  // GAME STATE
-  // ==========================================================================
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPaused, setIsPaused] = useState(false);
-  const [drawnCard, setDrawnCard] = useState<Event | null>(null);
-  const [newlyPlacedId, setNewlyPlacedId] = useState<string | null>(null);
-  const [newlyIncorrectId, setNewlyIncorrectId] = useState<string | null>(null);
-  const [showEndScreen, setShowEndScreen] = useState(true);
+	// ==========================================================================
+	// GAME STATE
+	// ==========================================================================
+	const [gameState, setGameState] = useState<GameState | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
+	const [isPaused, setIsPaused] = useState(false);
+	const [drawnCard, setDrawnCard] = useState<Event | null>(null);
+	const [newlyPlacedId, setNewlyPlacedId] = useState<string | null>(null);
+	const [newlyIncorrectId, setNewlyIncorrectId] = useState<string | null>(null);
+	const [showEndScreen, setShowEndScreen] = useState(true);
 
-	if( ! gameId) {
+	if (!gameId) {
 		// no game? go to home page, where lots of options should exist.
 		navigate(`/`, { replace: true });
 		// it is unclear to me if processing continues, so ...
@@ -60,56 +61,56 @@ export function PlayPage() {
 
 	let anonymous_user_id = '42' // i think this can move inside fetchGameState()
 
-	
-	
-  // Fetch game state before session jazz, because i'm going to get the anonymous user_id first.
-  useEffect(() => {
-    const fetchGameState = async (id: string) => {
-      try {
-				console.log('GETTING GAME STATE FROM API')
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-        const response = await fetch(`${apiUrl}/games/${id}`);
-        const data = await response.json();
 
-        // Transform any ID-only items in incorrectCardStack to full objects
-        if (data.state?.incorrectCardStack?.length > 0) {
-          data.state.incorrectCardStack = await Promise.all(
+
+	// Fetch game state before session jazz, because i'm going to get the anonymous user_id first.
+	useEffect(() => {
+		const fetchGameState = async (id: string) => {
+			try {
+				console.log('GETTING GAME STATE FROM API')
+				const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+				const response = await fetch(`${apiUrl}/games/${id}`);
+				const data = await response.json();
+
+				// Transform any ID-only items in incorrectCardStack to full objects
+				if (data.state?.incorrectCardStack?.length > 0) {
+					data.state.incorrectCardStack = await Promise.all(
 						data.state.incorrectCardStack.map(async (cardOrId) => {
-							if(typeof cardOrId === 'string') {
-                  return await getEventById(cardOrId);
-							} else if(cardOrId.title) {
-                  return cardOrId;
-							} else if(cardOrId.eventId) {
-									console.log('cardOrId', cardOrId)
-									const event = await getEventById(cardOrId.eventId)
-									console.log('event', event)
-									event.strikes = cardOrId.strikes ? cardOrId.strikes : [];
-									console.log('event', event)
-                  return event;
-                }
+							if (typeof cardOrId === 'string') {
+								return await getEventById(cardOrId);
+							} else if (cardOrId.title) {
+								return cardOrId;
+							} else if (cardOrId.eventId) {
+								console.log('cardOrId', cardOrId)
+								const event = await getEventById(cardOrId.eventId)
+								console.log('event', event)
+								event.strikes = cardOrId.strikes ? cardOrId.strikes : [];
+								console.log('event', event)
+								return event;
 							}
+						}
 						)
-          );
-        }
-        setGameState(data);
-        // Store game ID in localStorage for future visits
-        localStorage.setItem(CURRENT_GAME_KEY, id);
-        console.log('just got this gamestate data', data)
-        // Check if there's a limbo event (drawn but not yet guessed)
-        // If so, load it as the drawn card using our helper function
-        if (data.state?.limbo) {
-          const limboEvent = await getEventById(data.state.limbo);
-          // Set the limbo event as the drawn card if we found it
-          if (limboEvent) {
-            setDrawnCard(limboEvent);
-            // in this case, the game data we just got should be correct as to gameState.remainingEventCount
-          }
-        }
+					);
+				}
+				setGameState(data);
+				// Store game ID in localStorage for future visits
+				localStorage.setItem(CURRENT_GAME_KEY, id);
+				console.log('just got this gamestate data', data)
+				// Check if there's a limbo event (drawn but not yet guessed)
+				// If so, load it as the drawn card using our helper function
+				if (data.state?.limbo) {
+					const limboEvent = await getEventById(data.state.limbo);
+					// Set the limbo event as the drawn card if we found it
+					if (limboEvent) {
+						setDrawnCard(limboEvent);
+						// in this case, the game data we just got should be correct as to gameState.remainingEventCount
+					}
+				}
 
 				// now try to load the user
 				// if any of the players have the anonymous id (really only ever the solo player) then record its id for later comparisons (the id changes if the database is wiped.)
 				data.players.forEach((player: { username: string; _id: string; }) => {
-					if(player.username === 'Anonymous') {
+					if (player.username === 'Anonymous') {
 						anonymous_user_id = player._id
 					}
 				});
@@ -130,12 +131,12 @@ export function PlayPage() {
 					}
 
 				} else {
-		
+
 					// No stored session, try to fetch from API
 					try {
 						const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 						const response = await fetch(`${apiUrl}/user`);
-						
+
 						if (response.ok) {
 							const data = await response.json();
 							// API returns user data, create session from it
@@ -160,9 +161,9 @@ export function PlayPage() {
 						console.error('Failed to fetch user session from API:', error);
 					}
 				}
-		
+
 				// If we get here, use the anonymous user
-				const anonymous_user:UserSession = {
+				const anonymous_user: UserSession = {
 					_id: anonymous_user_id,
 					username: 'Anonymous',
 					isAnonymous: true
@@ -170,7 +171,6 @@ export function PlayPage() {
 				localStorage.setItem(USER_SESSION_KEY, JSON.stringify(anonymous_user));
 				setUserSession(anonymous_user)
 
-				
 
 
 
@@ -179,603 +179,603 @@ export function PlayPage() {
 
 
 
-      } catch (error) {
-        console.error("Failed to fetch game state:", error);
-      }
+
+			} catch (error) {
+				console.error("Failed to fetch game state:", error);
+			}
 			setIsLoading(false);
 			setIsLoadingSession(false);
-    };
+		};
 
-    // Fetch the game state using the gameId we computed at the top
-    fetchGameState(gameId);
+		// Fetch the game state using the gameId we computed at the top
+		fetchGameState(gameId);
 
-  }, [navigate, gameId]);
+	}, [navigate, gameId]);
 
-
-  /**
-   * Whenever gameState or userSession changes, update isSpectator and isUserTurn flags
-   */
-  useEffect(() => {
-		console.log('check for turn and spectate', userSession, gameState)
-    if (!userSession || !gameState) {
-      setIsSpectator(false);
-      setIsUserTurn(false);
-      return;
-    }
-
-    // Check if user is a spectator (userSession._id doesn't match any player in the game)
-		setIsSpectator( ! gameState.players.some(player => player._id === userSession._id));
-		
-    // Check if it's the user's turn
-    // currentTurn is an index into the players array
-		setIsUserTurn(gameState.players[gameState.state.currentTurn]?._id === userSession._id);
-
-  }, [gameState, userSession]);
-
-
-
-  // no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
-	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
-  
 
 	/**
-   * Checks if the game has ended and whether it was a victory or defeat
-   * Game ends in:
-   * - DEFEAT: When the number of strikes in the incorrect stack meets or exceeds a limit
-   * - VICTORY: When the timeline is full OR when there are no more events to draw AND no incorrect cards
-   * 
-   * Note: The strike limit should come from gameState.settings, but for now we'll use a reasonable default
-   */
-  const checkGameStatus = useCallback((): { isGameOver: boolean; isVictory: boolean } => {
+	 * Whenever gameState or userSession changes, update isSpectator and isUserTurn flags
+	 */
+	useEffect(() => {
+		// console.log('check for turn and spectate', userSession, gameState)
+		if (!userSession || !gameState) {
+			setIsSpectator(false);
+			setIsUserTurn(false);
+			return;
+		}
+
+		// Check if user is a spectator (userSession._id doesn't match any player in the game)
+		setIsSpectator(!gameState.players.some(player => player._id === userSession._id));
+
+		// Check if it's the user's turn
+		// currentTurn is an index into the players array
+		setIsUserTurn(gameState.players[gameState.state.currentTurn]?._id === userSession._id);
+
+	}, [gameState, userSession]);
+
+
+
+	// no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
+	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
+
+
+	/**
+	 * Checks if the game has ended and whether it was a victory or defeat
+	 * Game ends in:
+	 * - DEFEAT: When the number of strikes in the incorrect stack meets or exceeds a limit
+	 * - VICTORY: When the timeline is full OR when there are no more events to draw AND no incorrect cards
+	 * 
+	 * Note: The strike limit should come from gameState.settings, but for now we'll use a reasonable default
+	 */
+	const checkGameStatus = useCallback((): { isGameOver: boolean; isVictory: boolean } => {
 		// console.log('inside checkGameStatus')
-    if (!gameState) {
-      return { isGameOver: false, isVictory: false };
-    }
+		if (!gameState) {
+			return { isGameOver: false, isVictory: false };
+		}
 		const { isGameOver, isVictory } = _checkGameStatus();
 		// report changes to api. todo
 		return { isGameOver: isGameOver, isVictory: isVictory };
 	}, [gameState?.state])
 
-  const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean } => {
+	const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean } => {
 		// console.log('inside _checkGameStatus')
-    if (!gameState) {
-      return { isGameOver: false, isVictory: false };
-    }
-    // First, check if the game state says it's already over
-    // This handles the case when we're loading an already-completed game from the API
+		if (!gameState) {
+			return { isGameOver: false, isVictory: false };
+		}
+		// First, check if the game state says it's already over
+		// This handles the case when we're loading an already-completed game from the API
 		console.log('gameState.state', gameState.state)
-    if (gameState.state.state === 'over') {
+		if (gameState.state.state === 'over') {
 			console.error('not yet developed')
-      // If there's a victor and it matches user.id, it was a victory. Otherwise, it was a defeat
-      const isVictory = gameState.state.victor;
-      return { isGameOver: true, isVictory };
-    }
+			// If there's a victor and it matches user.id, it was a victory. Otherwise, it was a defeat
+			const isVictory = gameState.state.victor;
+			return { isGameOver: true, isVictory };
+		}
 
-    // Check for DEFEAT: Too many strikes in the incorrect stack
-    // Count total unique strikes across all incorrect cards
-    const totalStrikes = gameState.state.incorrectCardStack.reduce((count: number, card: any) => {
-      return count + (card.strikes ? card.strikes.length : 0);
-    }, 0);
-    
+		// Check for DEFEAT: Too many strikes in the incorrect stack
+		// Count total unique strikes across all incorrect cards
+		const totalStrikes = gameState.state.incorrectCardStack.reduce((count: number, card: any) => {
+			return count + (card.strikes ? card.strikes.length : 0);
+		}, 0);
+
 		console.log('totalStrikes', totalStrikes)
-    if (totalStrikes >= gameState.settings.strikeLimit) {
-      return { isGameOver: true, isVictory: false };
-    }
+		if (totalStrikes >= gameState.settings.strikeLimit) {
+			return { isGameOver: true, isVictory: false };
+		}
 
-    // Check for VICTORY: No more events to draw AND all events have been correctly placed
-    // Victory happens when:
-    // 1. The draw stack is empty (no more events to draw)
-    // 2. AND the incorrect stack is empty (all events were placed correctly)
-    // OR
-    // 3. The timeline has reached the target score (for collaborative mode)
-    if (drawStackEmpty && gameState.state.incorrectCardStack.length === 0) {
-      return { isGameOver: true, isVictory: true };
-    }
+		// Check for VICTORY: No more events to draw AND all events have been correctly placed
+		// Victory happens when:
+		// 1. The draw stack is empty (no more events to draw)
+		// 2. AND the incorrect stack is empty (all events were placed correctly)
+		// OR
+		// 3. The timeline has reached the target score (for collaborative mode)
+		if (drawStackEmpty && gameState.state.incorrectCardStack.length === 0) {
+			return { isGameOver: true, isVictory: true };
+		}
 
-    // Check if timeline has reached target score (for collaborative mode)
-    // Note: In competitive mode, this would check individual player scores
-    if (gameState.gameMode === 'collaborative') {
-      const targetScore = gameState.settings?.targetScore || 4;
-      if (gameState.state.timelineCollaborative.length >= targetScore) {
-        return { isGameOver: true, isVictory: true };
-      }
-    }
+		// Check if timeline has reached target score (for collaborative mode)
+		// Note: In competitive mode, this would check individual player scores
+		if (gameState.gameMode === 'collaborative') {
+			const targetScore = gameState.settings?.targetScore || 4;
+			if (gameState.state.timelineCollaborative.length >= targetScore) {
+				return { isGameOver: true, isVictory: true };
+			}
+		}
 
-    // Game is still in progress
-    return { isGameOver: false, isVictory: false };
-  };
+		// Game is still in progress
+		return { isGameOver: false, isVictory: false };
+	};
 
-  // Use the checkGameStatus function to get current game status
-  const { isGameOver, isVictory } = checkGameStatus();
+	// Use the checkGameStatus function to get current game status
+	const { isGameOver, isVictory } = checkGameStatus();
 	// const isGameOver = false;
 	// const isVictory = true;
 
 
-	
-  // If we have a gameId in localStorage but not in the URL, update the URL
-  // useEffect(() => {
-  //   if (!urlGameId && gameId) {
-  //     navigate(`/play/${gameId}`, { replace: true });
-  //   }
-  // }, [urlGameId, gameId, navigate]);
 
-  // Helper function to fetch event(s) by ID from cache or API
-  // This consolidates the caching logic used in multiple places
-  // @param eventId - Single event ID string or array of event IDs
-  // @returns Promise resolving to the event object(s) or null if not found
-  const getEventById = async (eventId: string | string[]): Promise<any | any[] | null> => {
-    if (!gameId) return null;
+	// If we have a gameId in localStorage but not in the URL, update the URL
+	// useEffect(() => {
+	//   if (!urlGameId && gameId) {
+	//     navigate(`/play/${gameId}`, { replace: true });
+	//   }
+	// }, [urlGameId, gameId, navigate]);
 
-    // Build cache key using the game ID
-    // Matches the cache key format used in Timeline.tsx
-    const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
-    const cachedData: Record<string, any> = JSON.parse(
-      localStorage.getItem(cacheKey) || "{}"
-    );
+	// Helper function to fetch event(s) by ID from cache or API
+	// This consolidates the caching logic used in multiple places
+	// @param eventId - Single event ID string or array of event IDs
+	// @returns Promise resolving to the event object(s) or null if not found
+	const getEventById = async (eventId: string | string[]): Promise<any | any[] | null> => {
+		if (!gameId) return null;
 
-    // Normalize to array for consistent handling
-    const ids = Array.isArray(eventId) ? eventId : [eventId];
+		// Build cache key using the game ID
+		// Matches the cache key format used in Timeline.tsx
+		const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+		const cachedData: Record<string, any> = JSON.parse(
+			localStorage.getItem(cacheKey) || "{}"
+		);
 
-    // Check which events are cached and which need fetching
-    const cachedEvents: any[] = [];
-    const missingIds: string[] = [];
+		// Normalize to array for consistent handling
+		const ids = Array.isArray(eventId) ? eventId : [eventId];
 
-    for (const id of ids) {
-      if (cachedData[id]) {
-        cachedEvents.push(cachedData[id]);
-      } else {
-        missingIds.push(id);
-      }
-    }
+		// Check which events are cached and which need fetching
+		const cachedEvents: any[] = [];
+		const missingIds: string[] = [];
 
-    // If all events are cached, return them
-    if (missingIds.length === 0) {
-      return Array.isArray(eventId) ? cachedEvents : cachedEvents[0];
-    }
+		for (const id of ids) {
+			if (cachedData[id]) {
+				cachedEvents.push(cachedData[id]);
+			} else {
+				missingIds.push(id);
+			}
+		}
 
-    // Fetch missing events from API
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-      const idsParam = missingIds.join(",");
-      const response = await fetch(`${apiUrl}/events?ids=${idsParam}`);
-      const data = await response.json();
+		// If all events are cached, return them
+		if (missingIds.length === 0) {
+			return Array.isArray(eventId) ? cachedEvents : cachedEvents[0];
+		}
 
-      if (response.ok && data.events?.length > 0) {
-        // Update cache with newly fetched events
-        const newCache = { ...cachedData };
-        for (const event of data.events) {
-          if (event._id) {
-            newCache[event._id] = event;
-          }
-        }
-        localStorage.setItem(cacheKey, JSON.stringify(newCache));
-
-        // Merge fetched events with cached ones and return
-        const fetchedMap = new Map(data.events.map((e: any) => [e._id, e]));
-        const allEvents = ids.map((id) => newCache[id] || fetchedMap.get(id)).filter(Boolean);
-
-        return Array.isArray(eventId) ? allEvents : allEvents[0];
-      }
-    } catch (err) {
-      console.error("Failed to fetch events:", err);
-      // Return whatever we have cached
-      return Array.isArray(eventId) ? cachedEvents : cachedEvents[0] || null;
-    }
-
-    // If we couldn't fetch missing events, return what we have
-    return Array.isArray(eventId) ? cachedEvents : cachedEvents[0] || null;
-  };
-
-
-  // Show loading state while either game or user session is loading
-  if (isLoadingSession) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Loading player…</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Loading game…</p>
-      </div>
-    );
-  }
-
-  // Game ID exists but failed to load game state
-  if (!gameState) {
-		localStorage.removeItem(CURRENT_GAME_KEY);
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Game not found</p>
-          <Button onClick={() => {
-            navigate("/play");
-          }}>
-            Carry on…
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  const isCollaborative = gameState.gameMode === "collaborative";
-  
-  // Get the current player's name from the players array
-  // currentTurn is an index into the players array
-  const currentPlayerName = gameState.players[gameState.state.currentTurn]?.username || "Player " + (gameState.state.currentTurn + 1);
-  
-  // Determine what to show in the status pill
-  // If user is a participant and it's their turn, show "Your turn"
-  // If user is a participant but not their turn, show "{currentPlayerName}'s turn (Watching)"
-  // If user is a spectator, show "{currentPlayerName}'s turn (Spectating)"
-  const statusText = isSpectator 
-    ? `${currentPlayerName}’s turn (Spectating)` 
-    : isUserTurn 
-      ? "Your turn" 
-      : `${currentPlayerName}’s turn`;
-
-  const handleDrawCard = async () => {
-		console.log('handleDrawCard()', isUserTurn, isSpectator)
-    if (!isUserTurn || isSpectator) return;
-
-    setIsPaused(true);
-
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-      const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
-      const data = await response.json();
-
-      if (response.ok && data.date && data.title) {
-        // data is already the full event. cache it, and continue.
-        // We have the full event, cache it directly
-        const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
-        const cachedData: Record<string, any> = JSON.parse(
-					localStorage.getItem(cacheKey) || "{}"
-        );
-        cachedData[data._id] = data;
-				localStorage.setItem(cacheKey, JSON.stringify(cachedData));
-        setDrawnCard(data);
-        setGameState({
-          ...gameState,
-					remainingEventCount: (gameState?.remainingEventCount || 1) - 1
-        });
-
-      } else if (data._id) {
-        // Only have the ID, need to fetch the full event
-        const fullEvent = await getEventById(data._id);
-        if (fullEvent) {
-          // Use the full event from the cache/API
-          setDrawnCard(fullEvent);
-					console.log('handle Drw card running getEventById')
-          setGameState({
-            ...gameState,
-						remainingEventCount: (gameState?.remainingEventCount || 1) - 1
-          });
-        }
-      } else if (data.message) {
-				if(data.message.indexOf('o events') !== -1) {
-
-        } else {
-					console.error("Unexpected message from draw endpoint:", data);
-        }
-      } else {
-				console.error("Unexpected response from draw endpoint:", data);
-        setIsPaused(false);
-      }
-
-       
-    } catch (err) {
-      console.error("Failed to draw card:", err);
-      setIsPaused(false);
-    }
-  };
-
-  // Helper function to report a move to the server
-  // Used by both handleCorrectMove and handleIncorrectMove to avoid code duplication
-  // @param eventId - The ID of the event that was placed
-  // @param success - Whether the placement was correct
-  // Note: Uses userSession._id to identify which user is making the move
-	const reportMove = async (eventId: string, success: boolean): Promise<Response | null> => {
-    if (!gameState || !userSession) return null;
-
-    try {
+		// Fetch missing events from API
+		try {
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-      
-      // Use the userSession._id to identify the user making the move
-      // This ensures the correct player is credited with the move
+			const idsParam = missingIds.join(",");
+			const response = await fetch(`${apiUrl}/events?ids=${idsParam}`);
+			const data = await response.json();
+
+			if (response.ok && data.events?.length > 0) {
+				// Update cache with newly fetched events
+				const newCache = { ...cachedData };
+				for (const event of data.events) {
+					if (event._id) {
+						newCache[event._id] = event;
+					}
+				}
+				localStorage.setItem(cacheKey, JSON.stringify(newCache));
+
+				// Merge fetched events with cached ones and return
+				const fetchedMap = new Map(data.events.map((e: any) => [e._id, e]));
+				const allEvents = ids.map((id) => newCache[id] || fetchedMap.get(id)).filter(Boolean);
+
+				return Array.isArray(eventId) ? allEvents : allEvents[0];
+			}
+		} catch (err) {
+			console.error("Failed to fetch events:", err);
+			// Return whatever we have cached
+			return Array.isArray(eventId) ? cachedEvents : cachedEvents[0] || null;
+		}
+
+		// If we couldn't fetch missing events, return what we have
+		return Array.isArray(eventId) ? cachedEvents : cachedEvents[0] || null;
+	};
+
+
+	// Show loading state while either game or user session is loading
+	if (isLoadingSession) {
+		return (
+			<div className="flex items-center justify-center h-full">
+				<p className="text-muted-foreground">Loading player…</p>
+			</div>
+		);
+	}
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center h-full">
+				<p className="text-muted-foreground">Loading game…</p>
+			</div>
+		);
+	}
+
+	// Game ID exists but failed to load game state
+	if (!gameState) {
+		localStorage.removeItem(CURRENT_GAME_KEY);
+		return (
+			<div className="flex items-center justify-center h-full">
+				<div className="text-center space-y-4">
+					<p className="text-muted-foreground">Game not found</p>
+					<Button onClick={() => {
+						navigate("/play");
+					}}>
+						Carry on…
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
+	const isCollaborative = gameState.gameMode === "collaborative";
+
+	// Get the current player's name from the players array
+	// currentTurn is an index into the players array
+	const currentPlayerName = gameState.players[gameState.state.currentTurn]?.username || "Player " + (gameState.state.currentTurn + 1);
+
+	// Determine what to show in the status pill
+	// If user is a participant and it's their turn, show "Your turn"
+	// If user is a participant but not their turn, show "{currentPlayerName}'s turn (Watching)"
+	// If user is a spectator, show "{currentPlayerName}'s turn (Spectating)"
+	const statusText = isSpectator
+		? `${currentPlayerName}’s turn (Spectating)`
+		: isUserTurn
+			? "Your turn"
+			: `${currentPlayerName}’s turn`;
+
+	const handleDrawCard = async () => {
+		console.log('handleDrawCard()', isUserTurn, isSpectator)
+		if (!isUserTurn || isSpectator) return;
+
+		setIsPaused(true);
+
+		try {
+			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+			const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
+			const data = await response.json();
+
+			if (response.ok && data.date && data.title) {
+				// data is already the full event. cache it, and continue.
+				// We have the full event, cache it directly
+				const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+				const cachedData: Record<string, any> = JSON.parse(
+					localStorage.getItem(cacheKey) || "{}"
+				);
+				cachedData[data._id] = data;
+				localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+				setDrawnCard(data);
+				setGameState({
+					...gameState,
+					remainingEventCount: (gameState?.remainingEventCount || 1) - 1
+				});
+
+			} else if (data._id) {
+				// Only have the ID, need to fetch the full event
+				const fullEvent = await getEventById(data._id);
+				if (fullEvent) {
+					// Use the full event from the cache/API
+					setDrawnCard(fullEvent);
+					console.log('handle Drw card running getEventById')
+					setGameState({
+						...gameState,
+						remainingEventCount: (gameState?.remainingEventCount || 1) - 1
+					});
+				}
+			} else if (data.message) {
+				if (data.message.indexOf('o events') !== -1) {
+
+				} else {
+					console.error("Unexpected message from draw endpoint:", data);
+				}
+			} else {
+				console.error("Unexpected response from draw endpoint:", data);
+				setIsPaused(false);
+			}
+
+
+		} catch (err) {
+			console.error("Failed to draw card:", err);
+			setIsPaused(false);
+		}
+	};
+
+	// Helper function to report a move to the server
+	// Used by both handleCorrectMove and handleIncorrectMove to avoid code duplication
+	// @param eventId - The ID of the event that was placed
+	// @param success - Whether the placement was correct
+	// Note: Uses userSession._id to identify which user is making the move
+	const reportMove = async (eventId: string, success: boolean): Promise<Response | null> => {
+		if (!gameState || !userSession) return null;
+
+		try {
+			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+
+			// Use the userSession._id to identify the user making the move
+			// This ensures the correct player is credited with the move
 			const response = await fetch(`${apiUrl}/games/${gameId}/player/${userSession._id}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ eventId, success })
 			});
-      return response;
-    } catch (error) {
-      console.error("Failed to report move:", error);
-      return null;
-    }
-  };
+			return response;
+		} catch (error) {
+			console.error("Failed to report move:", error);
+			return null;
+		}
+	};
 
-  const handleCorrectMove = async () => {
+	const handleCorrectMove = async () => {
 		console.log("CORRECT YAY")
-    
-    // Spectators cannot make moves
-    if (isSpectator || !isUserTurn) return;
 
-    // Store the drawn card ID before clearing it, so we can use it below
-    const drawnCardId = drawnCard._id;
+		// Spectators cannot make moves
+		if (isSpectator || !isUserTurn) return;
 
-    // Update the timeline immediately with the new event ID
-    // This ensures the UI updates right away, before the API call
-    setGameState({
+		// Store the drawn card ID before clearing it, so we can use it below
+		const drawnCardId = drawnCard._id;
+
+		// Update the timeline immediately with the new event ID
+		// This ensures the UI updates right away, before the API call
+		setGameState({
 			...gameState,                         // Copy all top-level properties
-      state: {
+			state: {
 				...gameState.state,                 // Copy all state properties
 				timelineCollaborative: [...gameState.state.timelineCollaborative, drawnCardId]
 			}
-    });
+		});
 
-    setDrawnCard(null);
-    setIsPaused(false);
-    setNewlyPlacedId(drawnCardId);
-    setTimeout(() => setNewlyPlacedId(null), 6000);
+		setDrawnCard(null);
+		setIsPaused(false);
+		setNewlyPlacedId(drawnCardId);
+		setTimeout(() => setNewlyPlacedId(null), 6000);
 
-    // Report the successful move to the server
-    const response = await reportMove(drawnCardId, true);
-    if (response?.ok) {
-      // Success - event was recorded on the server
-    }
+		// Report the successful move to the server
+		const response = await reportMove(drawnCardId, true);
+		if (response?.ok) {
+			// Success - event was recorded on the server
+		}
 	}
 
-  const handleIncorrectMove = () => {
+	const handleIncorrectMove = () => {
 		console.log("WRONG BOOOO", isSpectator, isUserTurn)
-    
-    // Spectators cannot make moves
-    if (isSpectator || !isUserTurn) return;
-    
-    // Store the drawn card ID before clearing it, so we can use it below
-    const drawnCardId = drawnCard._id;
-    
-    // Use userSession._id to track which user got this wrong
-    // This ensures strikes are attributed to the correct player
-    if (!userSession) return;
-    
-    if(drawnCard.strikes) {
-			drawnCard.strikes.push(userSession._id)
-    } else {
-      drawnCard.strikes = [userSession._id];
-    }
 
-    setGameState({
-      ...gameState,
-      state: {
-        ...gameState.state,
+		// Spectators cannot make moves
+		if (isSpectator || !isUserTurn) return;
+
+		// Store the drawn card ID before clearing it, so we can use it below
+		const drawnCardId = drawnCard._id;
+
+		// Use userSession._id to track which user got this wrong
+		// This ensures strikes are attributed to the correct player
+		if (!userSession) return;
+
+		if (drawnCard.strikes) {
+			drawnCard.strikes.push(userSession._id)
+		} else {
+			drawnCard.strikes = [userSession._id];
+		}
+
+		setGameState({
+			...gameState,
+			state: {
+				...gameState.state,
 				incorrectCardStack: [...gameState.state.incorrectCardStack, drawnCard]
 			}
-    });
+		});
 
-    setDrawnCard(null);
-    setIsPaused(false);
-    setNewlyIncorrectId(drawnCardId);
-    setTimeout(() => setNewlyIncorrectId(null), 6000);
+		setDrawnCard(null);
+		setIsPaused(false);
+		setNewlyIncorrectId(drawnCardId);
+		setTimeout(() => setNewlyIncorrectId(null), 6000);
 
-    // Report the incorrect move to the server
-    reportMove(drawnCardId, false);
+		// Report the incorrect move to the server
+		reportMove(drawnCardId, false);
 	}
 
-  // Helper function to redraw a card from the incorrect stack
-  // Called when user clicks on an incorrect card instead of a random draw
-  const handleRedrawCard = async (card: any) => {
-    if (!gameState) return;
+	// Helper function to redraw a card from the incorrect stack
+	// Called when user clicks on an incorrect card instead of a random draw
+	const handleRedrawCard = async (card: any) => {
+		if (!gameState) return;
 
 		console.log('user wants this card again', card)
-    setIsPaused(true);
+		setIsPaused(true);
 
-    // Call API to redraw this specific event
-    try {
-			
-      // Remove from incorrect stack
+		// Call API to redraw this specific event
+		try {
+
+			// Remove from incorrect stack
 			const newIncorrectStack = gameState.state.incorrectCardStack.filter(
 				(c: any) => c._id !== card._id
-        );
+			);
 
-      // Set as drawn card and update state
-      setGameState({
-        ...gameState,
-        state: {
-          ...gameState.state,
+			// Set as drawn card and update state
+			setGameState({
+				...gameState,
+				state: {
+					...gameState.state,
 					incorrectCardStack: newIncorrectStack
 				}
-      });
-      setDrawnCard(card);
+			});
+			setDrawnCard(card);
 
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const response = await fetch(`${apiUrl}/games/${gameId}/draw/${card._id}`, {
 				method: 'POST'
 			});
-      if (response.status === 201) {
+			if (response.status === 201) {
 
-      }
-    } catch (error) {
-      console.error("Failed to redraw card:", error);
-    }
-  };
+			}
+		} catch (error) {
+			console.error("Failed to redraw card:", error);
+		}
+	};
+
+
+	let strikeCountdown = gameState.settings.strikeLimit - gameState.state.incorrectCardStack.length;
 
 
 
-	
-
-	
-  return (
+	return (
 		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col overflow-hidden relative`}>
 
-      {/* Compact header: two rows on mobile, single row on desktop */}
-      <header className="flex-shrink-0 flex flex-col lg:flex-row lg:items-center lg:gap-3 px-4 py-2 border-b border-border">
-        {/* Row 1: title + settings */}
-        <div className="flex items-center">
-          <h1 className="text-lg font-bold text-muted-foreground mr-2">
-            Common Era
-          </h1>
-          <div className="ml-auto lg:ml-0 flex items-center gap-1">
-            {isGameOver && !showEndScreen && (
-              <Button variant="outline" size="sm" onClick={() => setShowEndScreen(true)}>
-                Results
-              </Button>
-            )}
-            <Button variant="ghost" size="icon">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+			{/* Compact header: two rows on mobile, single row on desktop */}
+			<header className="flex-shrink-0 flex flex-col lg:flex-row lg:items-center lg:gap-3 px-4 py-2 border-b border-border">
+				{/* Row 1: title + settings */}
+				<div className="flex items-center">
+					<h1 className="text-lg font-bold text-muted-foreground mr-2">
+						Common Era
+					</h1>
+					<div className="ml-auto lg:ml-0 flex items-center gap-1">
+						{isGameOver && !showEndScreen && (
+							<Button variant="outline" size="sm" onClick={() => setShowEndScreen(true)}>
+								Results
+							</Button>
+						)}
+						<Button variant="ghost" size="icon">
+							<Settings className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
 
-        {/* Row 2 (mobile) / inline (desktop): status pill + stats */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">
-            {statusText}
-          </span>
+				{/* Row 2 (mobile) / inline (desktop): status pill + stats */}
+				<div className="flex items-center gap-3 flex-wrap">
+					<span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">
+						{statusText}
+					</span>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            {isCollaborative ? (
-              <>
-                <span title="Timeline length">Score: {gameState.state.timelineCollaborative.length}</span>
-                <span title="Remaining events">Remaining Events: {gameState.remainingEventCount ?? 0}</span>
-                <span title="Missed guesses">Misses: {gameState.state.incorrectCardStack.length}</span>
-              </>
-            ) : (
-              gameState.players.map((player, index) => (
-                <span
-                  key={player._id || index}
-                  className={`px-2 py-0.5 rounded ${index === gameState.state.currentTurn ? "bg-primary/20 font-semibold" : ""}`}
-                >
-                  {player.username}: {player.score ?? 0}
-                </span>
-              ))
-            )}
-          </div>
-        </div>
-      </header>
+					<div className="flex items-center gap-3 text-xs text-muted-foreground">
+						{isCollaborative ? (
+							<>
+								<span title="Timeline length">Score: {gameState.state.timelineCollaborative.length}</span>
+								<span title="Remaining events">Remaining Events: {gameState.remainingEventCount ?? 0}</span>
+								<span title="Missed guesses">Misses: {gameState.state.incorrectCardStack.length}</span>
+							</>
+						) : (
+							gameState.players.map((player, index) => (
+								<span
+									key={player._id || index}
+									className={`px-2 py-0.5 rounded ${index === gameState.state.currentTurn ? "bg-primary/20 font-semibold" : ""}`}
+								>
+									{player.username}: {player.score ?? 0}
+								</span>
+							))
+						)}
+					</div>
+				</div>
+			</header>
 
-      {/* Main game area */}
-      <div className="flex-1 flex justify-center overflow-hidden relative">
-        <div className="w-full max-w-[1200px] flex flex-col lg:flex-row overflow-hidden relative">
-          {/* Desktop: Left Column - Timeline */}
-          {/* Mobile Waiting: Stacked section */}
-      <div className={`flex flex-col h-[calc(100vh-53px)] lg:max-w-[800px] lg:flex-1 relative z-20`}>
-            {/* <div className="p-4 pb-0">
+			{/* Main game area */}
+			<div className="flex-1 flex justify-center overflow-hidden relative">
+				<div className="w-full max-w-[1200px] flex flex-col lg:flex-row overflow-hidden relative">
+					{/* Desktop: Left Column - Timeline */}
+					{/* Mobile Waiting: Stacked section */}
+					<div className={`flex flex-col h-[calc(100vh-53px)] lg:max-w-[800px] lg:flex-1 relative z-20`}>
+						{/* <div className="p-4 pb-0">
           <h2 className="text-xl font-semibold">Timeline</h2>
           <p className="text-sm text-muted-foreground">
             {isCollaborative ? "Shared Timeline" : "Your Timeline"}
           </p>
         </div> */}
 
-            {/* Timeline Cards - scrollable container */}
-            {/* <div className="flex-1 p-4 pt-0"> */}
-            <Timeline
-              events={gameState.state.timelineCollaborative}
-              gameId={gameId}
-              drawnCard={drawnCard}
-              handleCorrectMove={handleCorrectMove}
-              handleIncorrectMove={handleIncorrectMove}
-              newlyPlacedId={newlyPlacedId}
-            />
-            {/* </div> */}
+						{/* Timeline Cards - scrollable container */}
+						{/* <div className="flex-1 p-4 pt-0"> */}
+						<Timeline
+							events={gameState.state.timelineCollaborative}
+							gameId={gameId}
+							drawnCard={drawnCard}
+							handleCorrectMove={handleCorrectMove}
+							handleIncorrectMove={handleIncorrectMove}
+							newlyPlacedId={newlyPlacedId}
+						/>
+						{/* </div> */}
 
-            {/* Drawn Card - absolutely positioned over right middle of timeline */}
-            {drawnCard && (
-              <Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
-                <div className="p-4">
-              <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>{drawnCard.title || drawnCard.name || "Event"}</h3>
-                  {drawnCard.description && (
-                <p className="text-sm mt-2">{drawnCard.description}</p>
-                  )}
-                </div>
-              </Card>
-            )}
-          </div>
+						{/* Drawn Card - absolutely positioned over right middle of timeline */}
+						{drawnCard && (
+							<Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
+								<div className="p-4">
+									<h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>{drawnCard.title || drawnCard.name || "Event"}</h3>
+									{drawnCard.description && (
+										<p className="text-sm mt-2">{drawnCard.description}</p>
+									)}
+								</div>
+							</Card>
+						)}
+					</div>
 
-          {/* Desktop: Middle Column - Draw + Incorrect Stack */}
-          {/* Mobile Waiting: Stacked section */}
-          {isUserTurn && (
-        <div className={`w-full lg:max-w-[400px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
-              <div className="space-y-4">
-                {/* Draw Button - Only show for participants who are waiting for their turn (not spectators) */}
-                  <div>
-                    <Button
-                      className="w-full"
-                      size="lg"
-                      onClick={handleDrawCard}
-                      disabled={isPaused || drawStackEmpty}
-                    >
-                  		{drawStackEmpty ? "No More Events" : "Draw New Event…"}
-                    </Button>
-                  </div>
+					{/* Desktop: Middle Column - Draw + Incorrect Stack */}
+					{/* Mobile Waiting: Stacked section */}
+					{isUserTurn && (
+						<div className={`w-full lg:max-w-[400px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
+							<div className="space-y-4">
+								{/* Draw Button - Only show for participants who are waiting for their turn (not spectators) */}
+								<div>
+									<Button
+										className="w-full"
+										size="lg"
+										onClick={handleDrawCard}
+										disabled={isPaused || drawStackEmpty}
+									>
+										{drawStackEmpty ? "No More Events" : "Draw New Event…"}
+									</Button>
+								</div>
 
-                {/* Spectator Message - Only show for spectators */}
-                {isSpectator && (
-                  <div className="p-4 border rounded-lg bg-muted/50">
-                    <p className="text-sm text-center text-muted-foreground">
-                      This is the current state of the game that other people are playing. It does not automatically update, you can try refreshing, but really this is not developed.
-                    </p>
-                  </div>
-                )}
+								{/* Spectator Message - Only show for spectators */}
+								{isSpectator && (
+									<div className="p-4 border rounded-lg bg-muted/50">
+										<p className="text-sm text-center text-muted-foreground">
+											This is the current state of the game that other people are playing. It does not automatically update, you can try refreshing, but really this is not developed.
+										</p>
+									</div>
+								)}
 
-                {/* Incorrect Guesses Stack */}
-                <div>
-							{gameState.state.incorrectCardStack.length > 0 ? (
-                    <h3 className="text-sm font-semibold mb-2">
-									{drawStackEmpty ? `…and ${gameState.state.incorrectCardStack.length} incorrect guesses` : "…or try one of these again:"}
-                    </h3>
-							) : ''}
-                  <div className="space-y-2">
-								{gameState.state.incorrectCardStack.length > 0 ? (
-									gameState.state.incorrectCardStack.map((card) => (
-										<div key={card._id}>
-                              <Card
-                                className={`p-4 cursor-pointer hover:bg-muted/50${newlyIncorrectId === card._id ? " card-glow-incorrect" : ""}`}
-													onClick={() => handleRedrawCard(card)}
-                              >
-                                <h3 className="font-semibold">
-                                  <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
-															{'X'.repeat(card.strikes?.length || 0)}
-                                  </span>
-														{card.title || card.name || "Event"}
-                                </h3>
-                                {card.description && (
-														<p className="text-sm mt-2">{card.description}</p>
-                                )}
-                              </Card>
-                            </div>
-									))
-                    ) : (
-                      <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
-                        <p className="text-center text-muted-foreground text-sm">
-													Incorrect cards will appear&nbsp;here. You can try them&nbsp;again.
-                        </p>
-                      </Card>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+								{/* Incorrect Guesses Stack */}
+								<div>
+									{gameState.state.incorrectCardStack.length > 0 ? (
+										<h3 className="text-sm font-semibold mb-2">
+											{drawStackEmpty ? `…and ${gameState.state.incorrectCardStack.length} incorrect guesses` : "…or try one of these again:"}
+										</h3>
+									) : ''}
+									<div className="space-y-2">
+										
+										{gameState.state.incorrectCardStack.map((card) => (
+												<div key={card._id}>
+													<Card
+														className={`p-4 cursor-pointer hover:bg-muted/50${newlyIncorrectId === card._id ? " card-glow-incorrect" : ""}`}
+														onClick={() => handleRedrawCard(card)}
+													>
+														<h3 className="font-semibold">
+															<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+																{'X'.repeat(card.strikes?.length || 0)}
+															</span>
+															{card.title || card.name || "Event"}
+														</h3>
+														{card.description && (
+															<p className="text-sm mt-2">{card.description}</p>
+														)}
+													</Card>
+												</div>
+											))
+										}
+										
+
+										{/* <h2>{strikeCountdown}</h2> */}
+										{[...Array(strikeCountdown)].map((_, i) => <StrikePlaceholderCard id={`sph${strikeCountdown - i}`} />)}
+
+									</div>
+								</div>
+							</div>
+						</div>
+					)}
 
 
-					
-      </div> {/* end 1200px container */}
-      </div> {/* end main game area */}
-      {isGameOver && showEndScreen && (
-        <GameEndScreen
-          isVictory={isVictory}
-          gameMode={gameState.gameMode}
-          players={gameState.players}
-          timelineLenth={gameState.state.timelineCollaborative.length}
-          incorrectCount={gameState.state.incorrectCardStack.length}
-          remainingEvents={gameState.remainingEventCount ?? 0}
-          onViewTimeline={() => setShowEndScreen(false)}
-        />
-      )}
-    </div>
-  );
+
+				</div> {/* end 1200px container */}
+			</div> {/* end main game area */}
+			{isGameOver && showEndScreen && (
+				<GameEndScreen
+					isVictory={isVictory}
+					gameMode={gameState.gameMode}
+					players={gameState.players}
+					timelineLenth={gameState.state.timelineCollaborative.length}
+					incorrectCount={gameState.state.incorrectCardStack.length}
+					remainingEvents={gameState.remainingEventCount ?? 0}
+					onViewTimeline={() => setShowEndScreen(false)}
+				/>
+			)}
+		</div>
+	);
 }
