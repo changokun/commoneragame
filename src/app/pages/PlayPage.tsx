@@ -1,75 +1,313 @@
 import { useParams, useNavigate, Link } from "react-router";
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Settings, PlusCircle, Users } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Timeline } from "../components/Timeline";
 import { GameEndScreen } from "../components/GameEndScreen";
-import { EVENT_CACHE_KEY_PREFIX } from "../constants";
-
-// Player interface: represents a player in the game
-// Contains all player data including name, identifier, and score
-interface Player {
-  _id: string;
-  name: string;
-  score?: number;
-}
-
-// GameState interface: represents the complete state of a game
-// Received from the backend API - players array now contains Player objects instead of separate playerNames
-interface GameState {
-  gameMode: "competitive" | "collaborative";
-  deviceMode: "single" | "multiple";
-  settings: {
-    targetScore: number;
-    turnOrder: string;
-  };
-  state: {
-    timelineCollaborative: any[];
-    currentTurn: number;
-    currentEventIndex: number;
-    agreedEvents: any[];
-    incorrectCardStack: any[];
-    limbo?: string; // Event ID of a drawn card that hasn't been guessed yet
-  };
-  status: string;
-  players: Player[]; // Array of Player objects - source of truth for player data
-  remainingEventCount?: number;
-}
+import { EVENT_CACHE_KEY_PREFIX, USER_SESSION_KEY, CURRENT_GAME_KEY } from "../constants";
+import { Player, GameState, UserSession, Event } from "../types";
 
 export function PlayPage() {
   const { gameId: urlGameId } = useParams();
   const navigate = useNavigate();
 
+  // ==========================================================================
+  // GAME ID
+  // ==========================================================================
   // gameId is derived from URL params or localStorage and never changes
   // It's required for the page to function, so if it doesn't exist we show an error
   // We don't use useState because it's computed once and never modified
-  const gameId = urlGameId || localStorage.getItem("CEcurrentGameId") || null;
+  const gameId = urlGameId || localStorage.getItem(CURRENT_GAME_KEY) || null;
 
+
+  // ==========================================================================
+  // USER SESSION
+  // ==========================================================================
+  // User session is GLOBAL - it represents the person in front of the screen
+  // It is NOT scoped to a specific game
+  // When a game is loaded, we match this user against the game's players array
+  // If there's a match, the user is a participant; otherwise, they're a spectator
+  const [userSession, setUserSession] = useState<UserSession | null>(null);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
+
+  // Flag to indicate if the current user is a spectator (not a player in this game)
+  // This is computed based on whether userSession._id matches any player in gameState.players
+  const [isSpectator, setIsSpectator] = useState(false);
+
+  // Flag to indicate if the current user is the one whose turn it is
+  // This is computed based on whether the user matches the current player
+  const [isUserTurn, setIsUserTurn] = useState(false);
+
+  // ==========================================================================
+  // GAME STATE
+  // ==========================================================================
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isMyTurn, setIsMyTurn] = useState(false);
-  const [activeCard, setActiveCard] = useState<any>(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [drawnCard, setDrawnCard] = useState<any>(null);
+  const [drawnCard, setDrawnCard] = useState<Event | null>(null);
   const [newlyPlacedId, setNewlyPlacedId] = useState<string | null>(null);
   const [newlyIncorrectId, setNewlyIncorrectId] = useState<string | null>(null);
-	const [showEndScreen, setShowEndScreen] = useState(true);
+  const [showEndScreen, setShowEndScreen] = useState(true);
 
+	if( ! gameId) {
+		// no game? go to home page, where lots of options should exist.
+		navigate(`/`, { replace: true });
+		// it is unclear to me if processing continues, so ...
+		console.log('post navigate() processing.')
+		return (<h1>yay</h1>)
+	}
 
-  // If we have a gameId in localStorage but not in the URL, update the URL
+	let anonymous_user_id = '42' // i think this can move inside fetchGameState()
+
+	
+	
+  // Fetch game state before session jazz, because i'm going to get the anonymous user_id first.
   useEffect(() => {
-    if (!urlGameId && gameId) {
-      navigate(`/play/${gameId}`, { replace: true });
+    const fetchGameState = async (id: string) => {
+      try {
+				console.log('GETTING GAME STATE FROM API')
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+        const response = await fetch(`${apiUrl}/games/${id}`);
+        const data = await response.json();
+
+        // Transform any ID-only items in incorrectCardStack to full objects
+        if (data.state?.incorrectCardStack?.length > 0) {
+          data.state.incorrectCardStack = await Promise.all(
+						data.state.incorrectCardStack.map(async (cardOrId) => {
+							if(typeof cardOrId === 'string') {
+                  return await getEventById(cardOrId);
+							} else if(cardOrId.title) {
+                  return cardOrId;
+							} else if(cardOrId.eventId) {
+									console.log('cardOrId', cardOrId)
+									const event = await getEventById(cardOrId.eventId)
+									console.log('event', event)
+									event.strikes = cardOrId.strikes ? cardOrId.strikes : [];
+									console.log('event', event)
+                  return event;
+                }
+							}
+						)
+          );
+        }
+        setGameState(data);
+        // Store game ID in localStorage for future visits
+        localStorage.setItem(CURRENT_GAME_KEY, id);
+        console.log('just got this gamestate data', data)
+        // Check if there's a limbo event (drawn but not yet guessed)
+        // If so, load it as the drawn card using our helper function
+        if (data.state?.limbo) {
+          const limboEvent = await getEventById(data.state.limbo);
+          // Set the limbo event as the drawn card if we found it
+          if (limboEvent) {
+            setDrawnCard(limboEvent);
+            // in this case, the game data we just got should be correct as to gameState.remainingEventCount
+          }
+        }
+
+				// now try to load the user
+				// if any of the players have the anonymous id (really only ever the solo player) then record its id for later comparisons (the id changes if the database is wiped.)
+				data.players.forEach((player: { username: string; _id: string; }) => {
+					if(player.username === 'Anonymous') {
+						anonymous_user_id = player._id
+					}
+				});
+
+				// Check if we have a session stored in localStorage
+				const storedSession = localStorage.getItem(USER_SESSION_KEY);
+				if (storedSession) {
+					console.log('found this session in local storage', storedSession)
+					try {
+						const parsed = JSON.parse(storedSession) as UserSession;
+						// Validate that it has the required fields
+						console.log(parsed)
+						if (parsed && parsed._id && parsed.username !== undefined && parsed.isAnonymous !== undefined) {
+							setUserSession(parsed);
+						}
+					} catch (e) {
+						console.error('Failed to parse stored user session:', e);
+					}
+
+				} else {
+		
+					// No stored session, try to fetch from API
+					try {
+						const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+						const response = await fetch(`${apiUrl}/user`);
+						
+						if (response.ok) {
+							const data = await response.json();
+							// API returns user data, create session from it
+							console.log('NOT TESTED api sent this from /user:', data)
+							console.log('api sent this from /user:', data)
+							console.log('api sent this from /user:', data)
+							console.log('api sent this from /user:', data)
+							const session: UserSession = {
+								_id: data._id || data.id,
+								username: data.name || data.username || 'WHAT!?',
+								isAnonymous: data.isAnonymous || false
+							};
+							// Store in localStorage for future use
+							localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
+							setUserSession(session);
+						} else if (response.status === 404) {
+							// User endpoint returns 404 for anonymous users
+							// This means we should create an anonymous session
+							console.log('No user session on server, creating anonymous session');
+						}
+					} catch (error) {
+						console.error('Failed to fetch user session from API:', error);
+					}
+				}
+		
+				// If we get here, use the anonymous user
+				const anonymous_user:UserSession = {
+					_id: anonymous_user_id,
+					username: 'Anonymous',
+					isAnonymous: true
+				}
+				localStorage.setItem(USER_SESSION_KEY, JSON.stringify(anonymous_user));
+				setUserSession(anonymous_user)
+
+				
+
+
+
+
+
+
+
+
+      } catch (error) {
+        console.error("Failed to fetch game state:", error);
+      }
+			setIsLoading(false);
+			setIsLoadingSession(false);
+    };
+
+    // Fetch the game state using the gameId we computed at the top
+    fetchGameState(gameId);
+
+  }, [navigate, gameId]);
+
+
+  /**
+   * Whenever gameState or userSession changes, update isSpectator and isUserTurn flags
+   */
+  useEffect(() => {
+		console.log('check for turn and spectate', userSession, gameState)
+    if (!userSession || !gameState) {
+      setIsSpectator(false);
+      setIsUserTurn(false);
+      return;
     }
-  }, [urlGameId, gameId, navigate]);
+
+    // Check if user is a spectator (userSession._id doesn't match any player in the game)
+		setIsSpectator( ! gameState.players.some(player => player._id === userSession._id));
+		
+    // Check if it's the user's turn
+    // currentTurn is an index into the players array
+		setIsUserTurn(gameState.players[gameState.state.currentTurn]?._id === userSession._id);
+
+  }, [gameState, userSession]);
+
+
+
+  // no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
+	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
+  
+
+	/**
+   * Checks if the game has ended and whether it was a victory or defeat
+   * Game ends in:
+   * - DEFEAT: When the number of strikes in the incorrect stack meets or exceeds a limit
+   * - VICTORY: When the timeline is full OR when there are no more events to draw AND no incorrect cards
+   * 
+   * Note: The strike limit should come from gameState.settings, but for now we'll use a reasonable default
+   */
+  const checkGameStatus = useCallback((): { isGameOver: boolean; isVictory: boolean } => {
+		console.log('inside checkGameStatus')
+    if (!gameState) {
+      return { isGameOver: false, isVictory: false };
+    }
+		const { isGameOver, isVictory } = _checkGameStatus();
+		// report changes to api. todo
+		return { isGameOver: isGameOver, isVictory: isVictory };
+	}, [gameState?.state])
+
+  const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean } => {
+		console.log('inside _checkGameStatus')
+    if (!gameState) {
+      return { isGameOver: false, isVictory: false };
+    }
+    // First, check if the game state says it's already over
+    // This handles the case when we're loading an already-completed game from the API
+		console.log('gameState.state', gameState.state)
+    if (gameState.state.state === 'over') {
+			console.error('not yet developed')
+      // If there's a victor and it matches user.id, it was a victory. Otherwise, it was a defeat
+      const isVictory = gameState.state.victor;
+      return { isGameOver: true, isVictory };
+    }
+
+    // Default strike limit - should eventually come from gameState.settings
+    // For now, using 3 as a reasonable default
+    const STRIKE_LIMIT = 3;
+
+    // Check for DEFEAT: Too many strikes in the incorrect stack
+    // Count total unique strikes across all incorrect cards
+    const totalStrikes = gameState.state.incorrectCardStack.reduce((count: number, card: any) => {
+      return count + (card.strikes ? card.strikes.length : 0);
+    }, 0);
+    
+		console.log('totalStrikes', totalStrikes)
+    if (totalStrikes >= STRIKE_LIMIT) {
+      return { isGameOver: true, isVictory: false };
+    }
+
+    // Check for VICTORY: No more events to draw AND all events have been correctly placed
+    // Victory happens when:
+    // 1. The draw stack is empty (no more events to draw)
+    // 2. AND the incorrect stack is empty (all events were placed correctly)
+    // OR
+    // 3. The timeline has reached the target score (for collaborative mode)
+    if (drawStackEmpty && gameState.state.incorrectCardStack.length === 0) {
+      return { isGameOver: true, isVictory: true };
+    }
+
+    // Check if timeline has reached target score (for collaborative mode)
+    // Note: In competitive mode, this would check individual player scores
+    if (gameState.gameMode === 'collaborative') {
+      const targetScore = gameState.settings?.targetScore || 4;
+      if (gameState.state.timelineCollaborative.length >= targetScore) {
+        return { isGameOver: true, isVictory: true };
+      }
+    }
+
+    // Game is still in progress
+    return { isGameOver: false, isVictory: false };
+  };
+
+  // Use the checkGameStatus function to get current game status
+  const { isGameOver, isVictory } = checkGameStatus();
+	// const isGameOver = false;
+	// const isVictory = true;
+
+
+	
+  // If we have a gameId in localStorage but not in the URL, update the URL
+  // useEffect(() => {
+  //   if (!urlGameId && gameId) {
+  //     navigate(`/play/${gameId}`, { replace: true });
+  //   }
+  // }, [urlGameId, gameId, navigate]);
 
   // Helper function to fetch event(s) by ID from cache or API
   // This consolidates the caching logic used in multiple places
   // @param eventId - Single event ID string or array of event IDs
   // @returns Promise resolving to the event object(s) or null if not found
   const getEventById = async (eventId: string | string[]): Promise<any | any[] | null> => {
-		console.log('getEventById()', eventId, 'gameId', gameId)
     if (!gameId) return null;
 
     // Build cache key using the game ID
@@ -82,7 +320,6 @@ export function PlayPage() {
     // Normalize to array for consistent handling
     const ids = Array.isArray(eventId) ? eventId : [eventId];
 
-		console.log('getEventById()', ids, 'cachedData', cachedData)
     // Check which events are cached and which need fetching
     const cachedEvents: any[] = [];
     const missingIds: string[] = [];
@@ -133,120 +370,35 @@ export function PlayPage() {
     return Array.isArray(eventId) ? cachedEvents : cachedEvents[0] || null;
   };
 
-  // Fetch game state
-  useEffect(() => {
-    // We already have gameId computed at the top from URL or localStorage
-    // Just fetch the game state if we have a valid gameId
-    if (!gameId) {
-      setIsLoading(false);
-      return;
-    }
 
-    const fetchGameState = async (id: string) => {
-      try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-        const response = await fetch(`${apiUrl}/games/${id}`);
-        const data = await response.json();
-
-        // Transform any ID-only items in incorrectCardStack to full objects
-        if (data.state?.incorrectCardStack?.length > 0) {
-          data.state.incorrectCardStack = await Promise.all(
-						data.state.incorrectCardStack.map(async (cardOrId) => {
-							if(typeof cardOrId === 'string') {
-                  return await getEventById(cardOrId);
-							} else if(cardOrId.title) {
-                  return cardOrId;
-							} else if(cardOrId.eventId) {
-									console.log('cardOrId', cardOrId)
-									const event = await getEventById(cardOrId.eventId)
-									console.log('event', event)
-									event.strikes = cardOrId.strikes ? cardOrId.strikes : [];
-									console.log('event', event)
-                  return event;
-                }
-							}
-						)
-          );
-        }
-        setGameState(data);
-        // Store game ID in localStorage for future visits
-        localStorage.setItem("CEcurrentGameId", id);
-        console.log('just got this gamestate data', data)
-        // Check if there's a limbo event (drawn but not yet guessed)
-        // If so, load it as the drawn card using our helper function
-        if (data.state?.limbo) {
-					console.log('yes data.state.limbo', data.state.limbo)
-          const limboEvent = await getEventById(data.state.limbo);
-          // Set the limbo event as the drawn card if we found it
-					console.log('limboEvent', limboEvent)
-          if (limboEvent) {
-            setDrawnCard(limboEvent);
-            // in this case, the game data we just got should be correct as to gameState.remainingEventCount
-          }
-        }
-
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Failed to fetch game state:", error);
-        setIsLoading(false);
-      }
-    };
-
-    // Fetch the game state using the gameId we computed at the top
-    fetchGameState(gameId);
-  }, [urlGameId, navigate, gameId]);
-
-  if (isLoading) {
+  // Show loading state while either game or user session is loading
+  if (isLoadingSession) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Loading game...</p>
+        <p className="text-muted-foreground">Loading player…</p>
       </div>
     );
   }
 
-  // No game ID found in URL or localStorage
-  if (!gameId) {
+  if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        <div className="max-w-md w-full text-center space-y-8">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold">No Active Games</h1>
-            <p className="text-muted-foreground">
-              You don't have any active games. Start a new game or join an existing one.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/new-game">
-              <Button size="lg" className="w-full sm:w-auto gap-2">
-                <PlusCircle className="h-5 w-5" />
-                Create New Game
-              </Button>
-            </Link>
-
-            <Link to="/join-game">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2">
-                <Users className="h-5 w-5" />
-                Join Existing Game
-              </Button>
-            </Link>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Loading game…</p>
       </div>
     );
   }
 
   // Game ID exists but failed to load game state
   if (!gameState) {
+		localStorage.removeItem(CURRENT_GAME_KEY);
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
           <p className="text-muted-foreground">Game not found</p>
           <Button onClick={() => {
-              localStorage.removeItem("CEcurrentGameId");
-              navigate("/play");
+            navigate("/play");
           }}>
-            Clear and Return
+            Carry on…
           </Button>
         </div>
       </div>
@@ -254,12 +406,24 @@ export function PlayPage() {
   }
 
   const isCollaborative = gameState.gameMode === "collaborative";
+  
   // Get the current player's name from the players array
   // currentTurn is an index into the players array
-  const currentPlayerName = gameState.players[gameState.state.currentTurn]?.name || "Player " + (gameState.state.currentTurn + 1);
+  const currentPlayerName = gameState.players[gameState.state.currentTurn]?.username || "Player " + (gameState.state.currentTurn + 1);
+  
+  // Determine what to show in the status pill
+  // If user is a participant and it's their turn, show "Your turn"
+  // If user is a participant but not their turn, show "{currentPlayerName}'s turn (Watching)"
+  // If user is a spectator, show "{currentPlayerName}'s turn (Spectating)"
+  const statusText = isSpectator 
+    ? `${currentPlayerName}’s turn (Spectating)` 
+    : isUserTurn 
+      ? "Your turn" 
+      : `${currentPlayerName}’s turn`;
 
   const handleDrawCard = async () => {
-    if (!gameId) return;
+		console.log('handleDrawCard()', isUserTurn, isSpectator)
+    if (!isUserTurn || isSpectator) return;
 
     setIsPaused(true);
 
@@ -289,6 +453,7 @@ export function PlayPage() {
         if (fullEvent) {
           // Use the full event from the cache/API
           setDrawnCard(fullEvent);
+					console.log('handle Drw card running getEventById')
           setGameState({
             ...gameState,
 						remainingEventCount: (gameState?.remainingEventCount || 1) - 1
@@ -316,13 +481,16 @@ export function PlayPage() {
   // Used by both handleCorrectMove and handleIncorrectMove to avoid code duplication
   // @param eventId - The ID of the event that was placed
   // @param success - Whether the placement was correct
+  // Note: Uses userSession._id to identify which user is making the move
 	const reportMove = async (eventId: string, success: boolean): Promise<Response | null> => {
-    if (!gameId || !gameState) return null;
+    if (!gameState || !userSession) return null;
 
     try {
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-			const playerId = gameState.players[gameState.state.currentTurn]?._id || gameState.state.currentTurn;
-			const response = await fetch(`${apiUrl}/games/${gameId}/player/${playerId}`, {
+      
+      // Use the userSession._id to identify the user making the move
+      // This ensures the correct player is credited with the move
+			const response = await fetch(`${apiUrl}/games/${gameId}/player/${userSession._id}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ eventId, success })
@@ -336,6 +504,9 @@ export function PlayPage() {
 
   const handleCorrectMove = async () => {
 		console.log("CORRECT YAY")
+    
+    // Spectators cannot make moves
+    if (isSpectator || !isUserTurn) return;
 
     // Store the drawn card ID before clearing it, so we can use it below
     const drawnCardId = drawnCard._id;
@@ -363,14 +534,22 @@ export function PlayPage() {
 	}
 
   const handleIncorrectMove = () => {
-		console.log("WRONG BOOOO")
+		console.log("WRONG BOOOO", isSpectator, isUserTurn)
+    
+    // Spectators cannot make moves
+    if (isSpectator || !isUserTurn) return;
+    
     // Store the drawn card ID before clearing it, so we can use it below
     const drawnCardId = drawnCard._id;
-		const playerId = gameState.players[gameState.state.currentTurn]?._id || gameState.state.currentTurn;
-		if(drawnCard.strikes) {
-			drawnCard.strikes.push(playerId)
+    
+    // Use userSession._id to track which user got this wrong
+    // This ensures strikes are attributed to the correct player
+    if (!userSession) return;
+    
+    if(drawnCard.strikes) {
+			drawnCard.strikes.push(userSession._id)
     } else {
-      drawnCard.strikes = [playerId];
+      drawnCard.strikes = [userSession._id];
     }
 
     setGameState({
@@ -393,7 +572,7 @@ export function PlayPage() {
   // Helper function to redraw a card from the incorrect stack
   // Called when user clicks on an incorrect card instead of a random draw
   const handleRedrawCard = async (card: any) => {
-    if (!gameId || !gameState) return;
+    if (!gameState) return;
 
 		console.log('user wants this card again', card)
     setIsPaused(true);
@@ -430,11 +609,7 @@ export function PlayPage() {
 
 
 
-	console.log('gameState', gameState)
-  // no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
-	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
-  const isGameOver = true; //["complete", "finished", "won", "lost", "victory", "defeat", "ended"].includes(gameState.status);
-  const isVictory = false; // ["complete", "finished", "won", "victory"].includes(gameState.status);
+	
 
 	
   return (
@@ -462,7 +637,7 @@ export function PlayPage() {
         {/* Row 2 (mobile) / inline (desktop): status pill + stats */}
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">
-            {currentPlayerName}&apos;s turn
+            {statusText}
           </span>
 
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -478,7 +653,7 @@ export function PlayPage() {
                   key={player._id || index}
                   className={`px-2 py-0.5 rounded ${index === gameState.state.currentTurn ? "bg-primary/20 font-semibold" : ""}`}
                 >
-                  {player.name}: {player.score ?? 0}
+                  {player.username}: {player.score ?? 0}
                 </span>
               ))
             )}
@@ -526,20 +701,29 @@ export function PlayPage() {
 
           {/* Desktop: Middle Column - Draw + Incorrect Stack */}
           {/* Mobile Waiting: Stacked section */}
-          {!isMyTurn && (
+          {isUserTurn && (
         <div className={`w-full lg:max-w-[400px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
               <div className="space-y-4">
-                {/* Draw Button */}
-                <div>
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={handleDrawCard}
-                    disabled={isPaused || drawStackEmpty}
-                  >
-                {drawStackEmpty ? "No More Events" : "Draw New Event…"}
-                  </Button>
-                </div>
+                {/* Draw Button - Only show for participants who are waiting for their turn (not spectators) */}
+                  <div>
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={handleDrawCard}
+                      disabled={isPaused || drawStackEmpty}
+                    >
+                  		{drawStackEmpty ? "No More Events" : "Draw New Event…"}
+                    </Button>
+                  </div>
+
+                {/* Spectator Message - Only show for spectators */}
+                {isSpectator && (
+                  <div className="p-4 border rounded-lg bg-muted/50">
+                    <p className="text-sm text-center text-muted-foreground">
+                      This is the current state of the game that other people are playing. It does not automatically update, you can try refreshing, but really this is not developed.
+                    </p>
+                  </div>
+                )}
 
                 {/* Incorrect Guesses Stack */}
                 <div>
@@ -576,7 +760,7 @@ export function PlayPage() {
                     ) : (
                       <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
                         <p className="text-center text-muted-foreground text-sm">
-											Incorrect cards will appear here. You can try them again.
+													Incorrect cards will appear&nbsp;here. You can try them&nbsp;again.
                         </p>
                       </Card>
                     )}
@@ -586,29 +770,8 @@ export function PlayPage() {
             </div>
           )}
 
-          {/* Active Turn View - Simplified (Mobile) or Overlay (Desktop) */}
-          {isMyTurn && activeCard && (
-            <div className="absolute inset-0 bg-background z-50 lg:relative lg:z-auto">
-              <div className="h-full flex">
-                {/* Timeline (scrollable) */}
-                <div className="flex-1 overflow-y-auto p-4">
-                  <p className="text-center text-muted-foreground">
-                    Timeline with active card interaction
-                  </p>
-                </div>
 
-                {/* Active Card (fixed position, overlapping) */}
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 w-48 lg:w-64">
-                  <Card className="p-4 shadow-2xl border-primary border-2">
-                <p className="text-center font-medium">Active Event Card</p>
-                    <p className="text-center text-sm text-muted-foreground mt-2">
-                      Scroll timeline to position
-                    </p>
-                  </Card>
-                </div>
-              </div>
-            </div>
-          )}
+					
       </div> {/* end 1200px container */}
       </div> {/* end main game area */}
       {isGameOver && showEndScreen && (
