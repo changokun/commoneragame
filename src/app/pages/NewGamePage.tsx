@@ -303,14 +303,14 @@ export function NewGamePage() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Create New Game</h1>
         <p className="text-muted-foreground">
-          Answer the questions below to set up your game
+          Answer the questions below to set up your&nbsp;game
         </p>
       </div>
 
       <div className="space-y-6">
         <Card className="p-6 space-y-4">
           <h2 className="text-xl font-semibold">
-            Would you like to play competitively or collaboratively?
+            Would you like to play competitively or&nbsp;collaboratively?
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -324,7 +324,7 @@ export function NewGamePage() {
             >
               <h3 className="font-semibold text-lg mb-2">Play to Win</h3>
               <p className="text-sm text-muted-foreground">
-                Compete against other players to achieve the highest score
+                First player to complete their timeline&nbsp;wins
               </p>
             </button>
 
@@ -338,7 +338,7 @@ export function NewGamePage() {
             >
               <h3 className="font-semibold text-lg mb-2">Play to Build</h3>
               <p className="text-sm text-muted-foreground">
-                Work together with others to build a thriving civilization
+                Work together with others to build a single&nbsp;timeline
               </p>
             </button>
           </div>
@@ -346,7 +346,7 @@ export function NewGamePage() {
 
         {formData.gameMode && (
           <Card className="p-6 space-y-4">
-            <h2 className="text-xl font-semibold">Who's Playing?</h2>
+            <h2 className="text-xl font-semibold">Who’s Playing?</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
@@ -383,7 +383,7 @@ export function NewGamePage() {
         {formData.gameMode && formData.playerType === "multiple" && (
           <Card className="p-6 space-y-4">
             <h2 className="text-xl font-semibold">
-              Do you want to play on only this device or have other players join on their own devices?
+              Do you want to play on only this device or have other players join on their own&nbsp;devices?
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -397,7 +397,7 @@ export function NewGamePage() {
               >
                 <h3 className="font-semibold text-lg mb-2">Only this Device</h3>
                 <p className="text-sm text-muted-foreground">
-                  All players will share this screen and take turns
+                  All players will share this screen and take&nbsp;turns
                 </p>
               </button>
 
@@ -411,7 +411,7 @@ export function NewGamePage() {
               >
                 <h3 className="font-semibold text-lg mb-2">They got their own devices</h3>
                 <p className="text-sm text-muted-foreground">
-                  Players will join from their own devices
+                  Players will join from their own&nbsp;devices
                 </p>
               </button>
             </div>
@@ -422,7 +422,7 @@ export function NewGamePage() {
           <Card className="p-6 space-y-4">
             <h2 className="text-xl font-semibold">Player Names</h2>
             <p className="text-sm text-muted-foreground">
-              Enter player or team names (2-20 players)
+              Enter player or team names (2-20&nbsp;players)
             </p>
 
             <div className="space-y-2">
@@ -463,7 +463,7 @@ export function NewGamePage() {
             <div className="space-y-2">
               <h2 className="text-xl font-semibold">What history should we cover?</h2>
               <p className="text-sm text-muted-foreground">
-                Configure the historical scope and difficulty
+                Configure the historical scope and&nbsp;difficulty
               </p>
             </div>
 
