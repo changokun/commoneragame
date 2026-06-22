@@ -7,11 +7,12 @@ import { formatEventDate } from "../utils";
 interface TimelineCardProps {
   event: any;
   index: number;
+	isNew?: boolean;
 }
 
-function TimelineCard({ event, index }: TimelineCardProps) {
+function TimelineCard({ event, index, isNew }: TimelineCardProps) {
   return (
-    <Card key={index} className="p-4 timeline-card">
+    <Card key={index} className={`p-4 timeline-card${isNew ? " card-glow" : ""}`}>
       <div className="space-y-2">
         <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{formatEventDate(event)}</span> {event.title || `Event ${index + 1}`}</h3>
         {event.description && (
@@ -251,12 +252,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 				key={index}
 				className="timeline-card-container relative"
 			>
-				{isNew && (
-					<div className="starburst" aria-hidden="true" />
-				)}
-				<div className="relative z-10">
-					<TimelineCard event={event} index={index} />
-				</div>
+					<TimelineCard event={event} index={index} isNew={event._id === newlyPlacedId} />
 			</div>
 		)
 		

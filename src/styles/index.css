@@ -15,47 +15,114 @@
 	scroll-margin-top: -80px;
 }
 
-.starburst {
-	position: absolute;
-	inset: -40px;
-	z-index: 0;
-	border-radius: 50%;
-	background: conic-gradient(
-		from 0deg,
-		transparent 0deg 15deg,
-		oklch(0.85 0.18 85) 15deg 25deg,
-		transparent 25deg 45deg,
-		oklch(0.85 0.18 85) 45deg 55deg,
-		transparent 55deg 75deg,
-		oklch(0.85 0.18 85) 75deg 85deg,
-		transparent 85deg 105deg,
-		oklch(0.85 0.18 85) 105deg 115deg,
-		transparent 115deg 135deg,
-		oklch(0.85 0.18 85) 135deg 145deg,
-		transparent 145deg 165deg,
-		oklch(0.85 0.18 85) 165deg 175deg,
-		transparent 175deg 195deg,
-		oklch(0.85 0.18 85) 195deg 205deg,
-		transparent 205deg 225deg,
-		oklch(0.85 0.18 85) 225deg 235deg,
-		transparent 235deg 255deg,
-		oklch(0.85 0.18 85) 255deg 265deg,
-		transparent 265deg 285deg,
-		oklch(0.85 0.18 85) 285deg 295deg,
-		transparent 295deg 315deg,
-		oklch(0.85 0.18 85) 315deg 325deg,
-		transparent 325deg 345deg,
-		oklch(0.85 0.18 85) 345deg 360deg
-	);
-	pointer-events: none;
-	animation: starburst 6s ease-out forwards;
+.card-glow {
+	position: relative;
+	overflow: hidden;
+	animation: card-glow-pulse 6s ease-out forwards;
 }
 
-@keyframes starburst {
-	0%   { transform: scale(0.3) rotate(0deg);   opacity: 1; }
-	60%  { transform: scale(1.1) rotate(20deg);  opacity: 0.9; }
-	100% { transform: scale(1.6) rotate(35deg);  opacity: 0; }
+.card-glow::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		105deg,
+		transparent 30%,
+		oklch(0.98 0.08 85 / 0.7) 50%,
+		transparent 70%
+	);
+	transform: translateX(-100%);
+	animation: card-shimmer 6s ease-out forwards;
+	pointer-events: none;
+	border-radius: inherit;
 }
+
+@keyframes card-glow-pulse {
+	0%   { box-shadow: 0 0 0px 0px oklch(0.82 0.18 85 / 0); background-color: var(--card); }
+	8%   { box-shadow: 0 0 16px 6px oklch(0.82 0.18 85 / 0.85); background-color: oklch(0.97 0.06 85); }
+	30%  { box-shadow: 0 0 6px 2px oklch(0.82 0.18 85 / 0.4); background-color: oklch(0.99 0.02 85); }
+	50%  { box-shadow: 0 0 16px 6px oklch(0.82 0.18 85 / 0.7); background-color: oklch(0.97 0.05 85); }
+	70%  { box-shadow: 0 0 6px 2px oklch(0.82 0.18 85 / 0.3); background-color: oklch(0.99 0.01 85); }
+	85%  { box-shadow: 0 0 12px 4px oklch(0.82 0.18 85 / 0.5); background-color: oklch(0.98 0.03 85); }
+	100% { box-shadow: 0 0 0px 0px oklch(0.82 0.18 85 / 0); background-color: var(--card); }
+}
+
+.card-glow .year {
+	animation: year-glow 6s ease-out forwards;
+}
+
+@keyframes year-glow {
+	0%   { background-color: oklch(0.93 0 0); color: oklch(0.45 0 0); }
+	8%   { background-color: oklch(0.72 0.18 60); color: oklch(0.98 0.05 85); }
+	30%  { background-color: oklch(0.78 0.14 70); color: oklch(0.96 0.04 85); }
+	50%  { background-color: oklch(0.72 0.18 60); color: oklch(0.98 0.05 85); }
+	70%  { background-color: oklch(0.76 0.15 68); color: oklch(0.97 0.04 85); }
+	85%  { background-color: oklch(0.74 0.17 63); color: oklch(0.98 0.05 85); }
+	100% { background-color: oklch(0.93 0 0); color: oklch(0.45 0 0); }
+}
+
+.card-glow-incorrect {
+	position: relative;
+	overflow: hidden;
+	animation: card-glow-pulse-incorrect 6s ease-out forwards;
+}
+
+.card-glow-incorrect::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		105deg,
+		transparent 30%,
+		oklch(0.85 0.06 25 / 0.7) 50%,
+		transparent 70%
+	);
+	transform: translateX(-100%);
+	animation: card-shimmer-incorrect 6s ease-out forwards;
+	pointer-events: none;
+	border-radius: inherit;
+}
+
+.card-glow-incorrect .year {
+	animation: year-glow-incorrect 6s ease-out forwards;
+}
+
+@keyframes card-glow-pulse-incorrect {
+	0%   { box-shadow: 0 0 0px 0px oklch(0.55 0.22 25 / 0); background-color: var(--card); }
+	8%   { box-shadow: 0 0 16px 6px oklch(0.55 0.22 25 / 0.85); background-color: oklch(0.93 0.06 25); }
+	30%  { box-shadow: 0 0 6px 2px oklch(0.55 0.22 25 / 0.4); background-color: oklch(0.97 0.02 25); }
+	50%  { box-shadow: 0 0 16px 6px oklch(0.55 0.22 25 / 0.7); background-color: oklch(0.94 0.05 25); }
+	70%  { box-shadow: 0 0 6px 2px oklch(0.55 0.22 25 / 0.3); background-color: oklch(0.97 0.01 25); }
+	85%  { box-shadow: 0 0 12px 4px oklch(0.55 0.22 25 / 0.5); background-color: oklch(0.95 0.03 25); }
+	100% { box-shadow: 0 0 0px 0px oklch(0.55 0.22 25 / 0); background-color: var(--card); }
+}
+
+@keyframes card-shimmer-incorrect {
+	0%   { transform: translateX(-100%); opacity: 0; }
+	15%  { transform: translateX(-100%); opacity: 1; }
+	45%  { transform: translateX(200%); opacity: 1; }
+	46%  { transform: translateX(200%); opacity: 0; }
+	100% { transform: translateX(200%); opacity: 0; }
+}
+
+@keyframes year-glow-incorrect {
+	0%   { background-color: oklch(0.93 0 0); color: oklch(0.45 0 0); }
+	8%   { background-color: oklch(0.45 0.22 25); color: oklch(0.98 0.03 25); }
+	30%  { background-color: oklch(0.52 0.18 25); color: oklch(0.97 0.03 25); }
+	50%  { background-color: oklch(0.45 0.22 25); color: oklch(0.98 0.03 25); }
+	70%  { background-color: oklch(0.50 0.19 25); color: oklch(0.97 0.03 25); }
+	85%  { background-color: oklch(0.47 0.21 25); color: oklch(0.98 0.03 25); }
+	100% { background-color: oklch(0.93 0 0); color: oklch(0.45 0 0); }
+}
+
+@keyframes card-shimmer {
+	0%   { transform: translateX(-100%); opacity: 0; }
+	15%  { transform: translateX(-100%); opacity: 1; }
+	45%  { transform: translateX(200%); opacity: 1; }
+	46%  { transform: translateX(200%); opacity: 0; }
+	100% { transform: translateX(200%); opacity: 0; }
+}
+
 
 .game-end-screen {
 	position: fixed;
@@ -142,32 +209,3 @@
 	to   { transform: rotate(360deg); }
 }
 
-.starburst--incorrect {
-	background: conic-gradient(
-		from 0deg,
-		transparent 0deg 15deg,
-		oklch(0.65 0.22 25) 15deg 25deg,
-		transparent 25deg 45deg,
-		oklch(0.65 0.22 25) 45deg 55deg,
-		transparent 55deg 75deg,
-		oklch(0.65 0.22 25) 75deg 85deg,
-		transparent 85deg 105deg,
-		oklch(0.65 0.22 25) 105deg 115deg,
-		transparent 115deg 135deg,
-		oklch(0.65 0.22 25) 135deg 145deg,
-		transparent 145deg 165deg,
-		oklch(0.65 0.22 25) 165deg 175deg,
-		transparent 175deg 195deg,
-		oklch(0.65 0.22 25) 195deg 205deg,
-		transparent 205deg 225deg,
-		oklch(0.65 0.22 25) 225deg 235deg,
-		transparent 235deg 255deg,
-		oklch(0.65 0.22 25) 255deg 265deg,
-		transparent 265deg 285deg,
-		oklch(0.65 0.22 25) 285deg 295deg,
-		transparent 295deg 315deg,
-		oklch(0.65 0.22 25) 315deg 325deg,
-		transparent 325deg 345deg,
-		oklch(0.65 0.22 25) 345deg 360deg
-	);
-}

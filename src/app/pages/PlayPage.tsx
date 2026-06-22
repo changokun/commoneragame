@@ -735,13 +735,9 @@ export function PlayPage() {
                   <div className="space-y-2">
 								{gameState.state.incorrectCardStack.length > 0 ? (
 									gameState.state.incorrectCardStack.map((card) => (
-										<div key={card._id} className="relative" style={{ isolation: "isolate" }}>
-                            {newlyIncorrectId === card._id && (
-												<div className="starburst starburst--incorrect" aria-hidden="true" />
-                            )}
-                            <div className="relative z-10">
+										<div key={card._id}>
                               <Card
-                                className="p-4 cursor-pointer hover:bg-muted/50"
+                                className={`p-4 cursor-pointer hover:bg-muted/50${newlyIncorrectId === card._id ? " card-glow-incorrect" : ""}`}
 													onClick={() => handleRedrawCard(card)}
                               >
                                 <h3 className="font-semibold">
@@ -755,7 +751,6 @@ export function PlayPage() {
                                 )}
                               </Card>
                             </div>
-                          </div>
 									))
                     ) : (
                       <Card className="p-4 border-2 border-dashed border-muted-foreground/50">
