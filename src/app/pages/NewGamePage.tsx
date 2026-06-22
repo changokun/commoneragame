@@ -20,7 +20,7 @@ interface FormData {
   deviceMode: DeviceMode;
   playerNames: string[];
   maxEvents: number;
-  errorLimit: number;
+  strikeLimit: number;
   beginningFrom: string;
   upThrough: string;
   geographicLimits: string[];
@@ -30,7 +30,7 @@ interface FormData {
 interface Preset {
   name: string;
   maxEvents: number;
-  errorLimit: number;
+  strikeLimit: number;
   beginningFrom: string;
   upThrough: string;
   geographicLimits: string[];
@@ -41,7 +41,7 @@ const PRESETS: Preset[] = [
   {
     name: "Roman Art History",
     maxEvents: 30,
-    errorLimit: 3,
+    strikeLimit: 3,
     beginningFrom: "100 BCE",
     upThrough: "400 CE",
     geographicLimits: ["Europe"],
@@ -50,7 +50,7 @@ const PRESETS: Preset[] = [
   {
     name: "World Wars",
     maxEvents: 50,
-    errorLimit: 5,
+    strikeLimit: 5,
     beginningFrom: "1914",
     upThrough: "1945",
     geographicLimits: ["World"],
@@ -59,7 +59,7 @@ const PRESETS: Preset[] = [
   {
     name: "Ancient History",
     maxEvents: 40,
-    errorLimit: 3,
+    strikeLimit: 3,
     beginningFrom: "4000 BCE",
     upThrough: "500 CE",
     geographicLimits: ["World"],
@@ -97,7 +97,7 @@ export function NewGamePage() {
     deviceMode: null,
     playerNames: [""],
     maxEvents: 30,
-    errorLimit: 3,
+    strikeLimit: 3,
     beginningFrom: "4000 BCE",
     upThrough: "2026 CE",
     geographicLimits: [],
@@ -152,7 +152,7 @@ export function NewGamePage() {
       setFormData({
         ...formData,
         maxEvents: preset.maxEvents,
-        errorLimit: preset.errorLimit,
+        strikeLimit: preset.strikeLimit,
         beginningFrom: preset.beginningFrom,
         upThrough: preset.upThrough,
         geographicLimits: preset.geographicLimits,
@@ -256,7 +256,7 @@ export function NewGamePage() {
           deviceMode: formData.deviceMode,
           playerNames,
           maxEvents: formData.maxEvents,
-          errorLimit: formData.errorLimit,
+          strikeLimit: formData.strikeLimit,
           beginningFrom: formData.beginningFrom,
           upThrough: formData.upThrough,
           geographicLimits: formData.geographicLimits,
@@ -503,15 +503,16 @@ export function NewGamePage() {
               <div className="space-y-2">
                 <Label>Error Limit</Label>
                 <Select
-                  value={formData.errorLimit.toString()}
+                  value={formData.strikeLimit.toString()}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, errorLimit: parseInt(value) })
+                    setFormData({ ...formData, strikeLimit: parseInt(value) })
                   }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="0">0 (Any mistake ends the game)</SelectItem>
                     <SelectItem value="1">1</SelectItem>
                     <SelectItem value="2">2</SelectItem>
                     <SelectItem value="3">3</SelectItem>

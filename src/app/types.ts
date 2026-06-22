@@ -61,6 +61,7 @@ export interface GameState {
   deviceMode: "single" | "multiple";
   settings: {
     targetScore: number;    // Target score for victory in competitive mode
+    strikeLimit: number;
     turnOrder: string;      // Order in which players take turns
   };
   state: {

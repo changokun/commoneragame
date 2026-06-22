@@ -227,7 +227,7 @@ export function PlayPage() {
    * Note: The strike limit should come from gameState.settings, but for now we'll use a reasonable default
    */
   const checkGameStatus = useCallback((): { isGameOver: boolean; isVictory: boolean } => {
-		console.log('inside checkGameStatus')
+		// console.log('inside checkGameStatus')
     if (!gameState) {
       return { isGameOver: false, isVictory: false };
     }
@@ -237,7 +237,7 @@ export function PlayPage() {
 	}, [gameState?.state])
 
   const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean } => {
-		console.log('inside _checkGameStatus')
+		// console.log('inside _checkGameStatus')
     if (!gameState) {
       return { isGameOver: false, isVictory: false };
     }
@@ -251,10 +251,6 @@ export function PlayPage() {
       return { isGameOver: true, isVictory };
     }
 
-    // Default strike limit - should eventually come from gameState.settings
-    // For now, using 3 as a reasonable default
-    const STRIKE_LIMIT = 3;
-
     // Check for DEFEAT: Too many strikes in the incorrect stack
     // Count total unique strikes across all incorrect cards
     const totalStrikes = gameState.state.incorrectCardStack.reduce((count: number, card: any) => {
@@ -262,7 +258,7 @@ export function PlayPage() {
     }, 0);
     
 		console.log('totalStrikes', totalStrikes)
-    if (totalStrikes >= STRIKE_LIMIT) {
+    if (totalStrikes >= gameState.settings.strikeLimit) {
       return { isGameOver: true, isVictory: false };
     }
 

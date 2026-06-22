@@ -2,7 +2,7 @@ import { Event, GameState } from "./types";
 
 export function formatEventDate(event: Event, settings: object = {}): string {
 	const year = parseInt(event.date, 10);
-	console.log('format()', event, event.date, year)
+	// console.log('format()', event, event.date, year)
 
 	if (isNaN(year)) return event.date;
 
