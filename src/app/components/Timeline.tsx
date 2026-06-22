@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { EVENT_CACHE_KEY_PREFIX } from "../constants";
+import { formatEventDate } from "../utils";
 
 interface TimelineCardProps {
   event: any;
@@ -12,7 +13,7 @@ function TimelineCard({ event, index }: TimelineCardProps) {
   return (
     <Card key={index} className="p-4 timeline-card">
       <div className="space-y-2">
-        <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{event.date}</span> {event.title || `Event ${index + 1}`}</h3>
+        <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{formatEventDate(event)}</span> {event.title || `Event ${index + 1}`}</h3>
         {event.description && (
           <p className="text-sm">{event.description}</p>
         )}
