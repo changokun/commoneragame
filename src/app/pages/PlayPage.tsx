@@ -8,6 +8,7 @@ import { StrikePlaceholderCard } from "../components/StrikePlaceholderCard";
 import { GameEndScreen } from "../components/GameEndScreen";
 import { EVENT_CACHE_KEY_PREFIX, USER_SESSION_KEY, CURRENT_GAME_KEY } from "../constants";
 import { Player, GameState, UserSession, Event } from "../types";
+import { formatEventDate } from "../utils";
 
 export function PlayPage() {
 	const { gameId: urlGameId } = useParams();
@@ -739,7 +740,7 @@ export function PlayPage() {
 													>
 														<h3 className="font-semibold">
 															<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
-																{'X'.repeat(card.strikes?.length || 0)}
+																{isGameOver ? formatEventDate(card) : 'X'.repeat(card.strikes?.length || 0)}
 															</span>
 															{card.title || card.name || "Event"}
 														</h3>
