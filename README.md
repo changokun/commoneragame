@@ -1,6 +1,6 @@
 # Common Era Game - Frontend
 
-A text-based strategy game where you guide civilizations through the ages.
+A game.
 
 ## Setup
 
