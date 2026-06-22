@@ -201,9 +201,9 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 
 	let correctPosition = -9
 	if(drawnCard) {
-		console.log('drawnCard.date', drawnCard.date)
-		console.log('events[0].date', events[0].date)
-		console.log('events[events.length - 1].date', events[events.length - 1].date, events.length - 1)
+		// console.log('drawnCard.date', drawnCard.date)
+		// console.log('events[0].date', events[0].date)
+		// console.log('events[events.length - 1].date', events[events.length - 1].date, events.length - 1)
 		// which is the correct position?
 		if(drawnCard.date < events[0].date) {
 			correctPosition = 0
