@@ -2,7 +2,7 @@ import { X, Skull } from "lucide-react";
 import { Card } from "../components/ui/card";
 
 export function StrikePlaceholderCard({id}: {id: string}) {
-  console.log('StrikePlaceholderCard', id)
+  // console.log('StrikePlaceholderCard', id)
 
 	return (
 		<Card className={`p-4 cursor-not-allowed border-dashed min-h-[100px]`}>
