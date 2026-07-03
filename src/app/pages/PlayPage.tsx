@@ -9,6 +9,9 @@ import { GameEndScreen } from "../components/GameEndScreen";
 import { EVENT_CACHE_KEY_PREFIX, USER_SESSION_KEY, CURRENT_GAME_KEY } from "../constants";
 import { Player, GameState, UserSession, Event } from "../types";
 import { formatEventDate } from "../utils";
+import { createNetworkErrorModal, ApiError, NetworkError, ErrorModalConfig, DevelopmentError } from "../errors";
+import { ErrorModalDialog } from "../errors/ErrorModalDialog";
+
 
 export function PlayPage() {
 	const { gameId: urlGameId } = useParams();
@@ -51,6 +54,7 @@ export function PlayPage() {
 	const [newlyPlacedId, setNewlyPlacedId] = useState<string | null>(null);
 	const [newlyIncorrectId, setNewlyIncorrectId] = useState<string | null>(null);
 	const [showEndScreen, setShowEndScreen] = useState(true);
+	const [errorModal, setErrorModal] = useState<ErrorModalConfig | null>(null);
 
 	if (!gameId) {
 		// no game? go to home page, where lots of options should exist.
@@ -82,11 +86,11 @@ export function PlayPage() {
 							} else if (cardOrId.title) {
 								return cardOrId;
 							} else if (cardOrId.eventId) {
-								console.log('cardOrId', cardOrId)
+								// console.log('cardOrId', cardOrId)
 								const event = await getEventById(cardOrId.eventId)
-								console.log('event', event)
+								// console.log('event', event)
 								event.strikes = cardOrId.strikes ? cardOrId.strikes : [];
-								console.log('event', event)
+								// console.log('event', event)
 								return event;
 							}
 						}
@@ -245,7 +249,7 @@ export function PlayPage() {
 		}
 		// First, check if the game state says it's already over
 		// This handles the case when we're loading an already-completed game from the API
-		console.log('gameState.state', gameState.state)
+		// console.log('gameState.state', gameState.state)
 		if (gameState.state.state === 'over') {
 			console.error('not yet developed')
 			// If there's a victor and it matches user.id, it was a victory. Otherwise, it was a defeat
@@ -259,7 +263,7 @@ export function PlayPage() {
 			return count + (card.strikes ? card.strikes.length : 0);
 		}, 0);
 
-		console.log('totalStrikes', totalStrikes)
+		// console.log('totalStrikes', totalStrikes)
 		if (totalStrikes >= gameState.settings.strikeLimit) {
 			return { isGameOver: true, isVictory: false };
 		}
@@ -420,7 +424,7 @@ export function PlayPage() {
 			: `${currentPlayerName}’s turn`;
 
 	const handleDrawCard = async () => {
-		console.log('handleDrawCard()', isUserTurn, isSpectator)
+		console.log('handleDrawCard()', 'isUserTurn:', isUserTurn, 'isSpectator:', isSpectator)
 		if (!isUserTurn || isSpectator) return;
 
 		setIsPaused(true);
@@ -428,50 +432,91 @@ export function PlayPage() {
 		try {
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
-			const data = await response.json();
+			let data = await response.json();
+			console.log('response', response, 'data', data, typeof data)
 
-			if (response.ok && data.date && data.title) {
-				// data is already the full event. cache it, and continue.
-				// We have the full event, cache it directly
-				const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
-				const cachedData: Record<string, any> = JSON.parse(
-					localStorage.getItem(cacheKey) || "{}"
-				);
-				cachedData[data._id] = data;
-				localStorage.setItem(cacheKey, JSON.stringify(cachedData));
-				setDrawnCard(data);
-				setGameState({
-					...gameState,
-					remainingEventCount: (gameState?.remainingEventCount || 1) - 1
-				});
-
-			} else if (data._id) {
-				// Only have the ID, need to fetch the full event
-				const fullEvent = await getEventById(data._id);
-				if (fullEvent) {
-					// Use the full event from the cache/API
-					setDrawnCard(fullEvent);
-					console.log('handle Drw card running getEventById')
+			if(response.ok) {
+				if(typeof data === 'string' && data.length === 24) {
+					// the api supplied only an event id. it must expect us to already have it cached.
+					// stick it into itself
+					data = {_id: data}
+					console.log('new data ', data)
+				}
+				
+				if (data.title) {
+					// data is already the full event. cache it, and continue.
+					// We have the full event, cache it directly
+					const cacheKey = `${EVENT_CACHE_KEY_PREFIX}${gameId}`;
+					const cachedData: Record<string, any> = JSON.parse(
+						localStorage.getItem(cacheKey) || "{}"
+					);
+					cachedData[data._id] = data;
+					localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+					setDrawnCard(data);
 					setGameState({
 						...gameState,
 						remainingEventCount: (gameState?.remainingEventCount || 1) - 1
 					});
-				}
-			} else if (data.message) {
-				if (data.message.indexOf('o events') !== -1) {
-
+	
+				} else if (data._id) {
+					// Only have the ID, need to fetch the full event
+					const fullEvent = await getEventById(data._id);
+					if (fullEvent) {
+						// Use the full event from the cache/API
+						setDrawnCard(fullEvent);
+						console.log('handle Drw card running getEventById')
+						setGameState({
+							...gameState,
+							remainingEventCount: (gameState?.remainingEventCount || 1) - 1
+						});
+					}
+				} else if (data.message) {
+					if (data.message.indexOf('o events') !== -1) {
+						throw new DevelopmentError();
+					} else {
+						throw new ApiError("Unexpected message from draw endpoint: " + data.message, response.status, response.statusText, response);
+					}
 				} else {
-					console.error("Unexpected message from draw endpoint:", data);
+					throw new ApiError("Unexpected response from draw endpoint", response.status, response.statusText, response);
 				}
+	
 			} else {
-				console.error("Unexpected response from draw endpoint:", data);
-				setIsPaused(false);
+				throw new NetworkError('Trying to draw a new event but something went wrong')
 			}
 
 
+
 		} catch (err) {
-			console.error("Failed to draw card:", err);
+			console.error('Error in handleDrawCard()…', err)
 			setIsPaused(false);
+			if (err instanceof ApiError) {
+				// show error modal - try again etc.
+				setErrorModal({
+					title: "Ow! I hit my head!",
+					message: 'oink',
+					userMust: [],
+					userMay: [{
+						text: "Cancel, maybe try later",
+						variant: 'cancel'
+					}],
+					close: () => setErrorModal(null)
+				})
+
+			} else if (err instanceof NetworkError) {
+				// show error modal - try again etc.
+				setErrorModal(createNetworkErrorModal(
+					err.message ? err.message : 'I could not complete a task.',
+					[],
+					[{
+						text: "Cancel, maybe try later",
+						variant: 'cancel'
+					}, {
+						text: "Try to Draw Again",
+						method: handleDrawCard
+					}],
+					() => setErrorModal(null)
+				));
+			}
 		}
 	};
 
@@ -480,7 +525,7 @@ export function PlayPage() {
 	// @param eventId - The ID of the event that was placed
 	// @param success - Whether the placement was correct
 	// Note: Uses userSession._id to identify which user is making the move
-	const reportMove = async (eventId: string, success: boolean): Promise<Response | null> => {
+	const reportMove = async (eventId: string, success: boolean, a:string, b:string): Promise<Response | null> => {
 		if (!gameState || !userSession) return null;
 
 		try {
@@ -491,7 +536,7 @@ export function PlayPage() {
 			const response = await fetch(`${apiUrl}/games/${gameId}/player/${userSession._id}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ eventId, success })
+				body: JSON.stringify({ eventId, success, a, b })
 			});
 			return response;
 		} catch (error) {
@@ -500,8 +545,9 @@ export function PlayPage() {
 		}
 	};
 
-	const handleCorrectMove = async () => {
+	const handleCorrectMove = async (placement: { a: string; b: string }) => {
 		console.log("CORRECT YAY")
+		// we don't do anything with the args, see the Incorrect process.
 
 		// Spectators cannot make moves
 		if (isSpectator || !isUserTurn) return;
@@ -531,9 +577,9 @@ export function PlayPage() {
 		}
 	}
 
-	const handleIncorrectMove = () => {
-		console.log("WRONG BOOOO", isSpectator, isUserTurn)
-
+	const handleIncorrectMove = async (placement: { a: string; b: string }) => {
+		console.log("WRONG BOOOO", isSpectator, isUserTurn, placement)
+		const {a, b} = placement
 		// Spectators cannot make moves
 		if (isSpectator || !isUserTurn) return;
 
@@ -544,10 +590,19 @@ export function PlayPage() {
 		// This ensures strikes are attributed to the correct player
 		if (!userSession) return;
 
+		const strike = {playerId: userSession._id}
+		if(a && b) {
+			strike.rangeKnownBad = `NOT before ${b} and NOT after ${a}`
+		} else if (a) {
+			strike.rangeKnownBad = `NOT after ${a}`
+		} else if (a) {
+			strike.rangeKnownBad = `NOT before ${b}`
+		}
+
 		if (drawnCard.strikes) {
-			drawnCard.strikes.push(userSession._id)
+			drawnCard.strikes.push(strike)
 		} else {
-			drawnCard.strikes = [userSession._id];
+			drawnCard.strikes = [strike];
 		}
 
 		setGameState({
@@ -564,7 +619,7 @@ export function PlayPage() {
 		setTimeout(() => setNewlyIncorrectId(null), 6000);
 
 		// Report the incorrect move to the server
-		reportMove(drawnCardId, false);
+		reportMove(drawnCardId, false, a, b);
 	}
 
 	// Helper function to redraw a card from the incorrect stack
@@ -609,9 +664,20 @@ export function PlayPage() {
 	let strikeCountdown = gameState.settings.strikeLimit - gameState.state.incorrectCardStack.length;
 
 
-
+	// console.log('errorModal before render', errorModal)
 	return (
 		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col overflow-hidden relative`}>
+
+
+
+		{errorModal && (
+			<div>
+				<ErrorModalDialog {...errorModal} />
+			</div>
+		)}
+
+
+
 
 			{/* Compact header: two rows on mobile, single row on desktop */}
 			<header className="flex-shrink-0 flex flex-col lg:flex-row lg:items-center lg:gap-3 px-4 py-2 border-b border-border">
@@ -674,14 +740,14 @@ export function PlayPage() {
 
 						{/* Timeline Cards - scrollable container */}
 						{/* <div className="flex-1 p-4 pt-0"> */}
-						<Timeline
-							events={gameState.state.timelineCollaborative}
-							gameId={gameId}
-							drawnCard={drawnCard}
-							handleCorrectMove={handleCorrectMove}
-							handleIncorrectMove={handleIncorrectMove}
-							newlyPlacedId={newlyPlacedId}
-						/>
+							<Timeline
+								events={gameState.state.timelineCollaborative}
+								gameId={gameId}
+								drawnCard={drawnCard}
+								handleCorrectMove={handleCorrectMove}
+								handleIncorrectMove={handleIncorrectMove}
+								newlyPlacedId={newlyPlacedId}
+							/>
 						{/* </div> */}
 
 						{/* Drawn Card - absolutely positioned over right middle of timeline */}
@@ -708,7 +774,7 @@ export function PlayPage() {
 										className="w-full"
 										size="lg"
 										onClick={handleDrawCard}
-										disabled={isPaused || drawStackEmpty}
+										disabled={isPaused || drawStackEmpty || isGameOver}
 									>
 										{drawStackEmpty ? "No More Events" : "Draw New Event…"}
 									</Button>
@@ -735,12 +801,12 @@ export function PlayPage() {
 										{gameState.state.incorrectCardStack.map((card) => (
 												<div key={card._id}>
 													<Card
-														className={`p-4 cursor-pointer hover:bg-muted/50${newlyIncorrectId === card._id ? " card-glow-incorrect" : ""}`}
-														onClick={() => handleRedrawCard(card)}
+														className={`p-4 ${isGameOver ? "cursor-default" : "cursor-pointer hover:bg-muted/50"}${newlyIncorrectId === card._id ? " card-glow-incorrect" : ""}`}
+														onClick={!isGameOver ? () => handleRedrawCard(card) : undefined}
 													>
 														<h3 className="font-semibold">
 															<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
-																{isGameOver ? formatEventDate(card) : 'X'.repeat(card.strikes?.length || 0)}
+																{isGameOver ? formatEventDate(card.date) : 'X'.repeat(card.strikes?.length || 0)}
 															</span>
 															{card.title || card.name || "Event"}
 														</h3>
