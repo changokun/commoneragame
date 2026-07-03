@@ -14,7 +14,7 @@ function TimelineCard({ event, index, isNew }: TimelineCardProps) {
   return (
     <Card key={index} className={`p-4 timeline-card${isNew ? " card-glow" : ""}`}>
       <div className="space-y-2">
-        <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{formatEventDate(event)}</span> {event.title || `Event ${index + 1}`}</h3>
+        <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{formatEventDate(event.date)}</span> {event.title || `Event ${index + 1}`}</h3>
         {event.description && (
           <p className="text-sm">{event.description}</p>
         )}
@@ -24,8 +24,8 @@ function TimelineCard({ event, index, isNew }: TimelineCardProps) {
 }
 
 function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }: PlacementOptionProps) {
-	const b = before?.date
-	const a = after?.date
+	const b = formatEventDate(before?.date)
+	const a = formatEventDate(after?.date)
 	
 	// Build placement description - one line, maybe two
 	let label = "Place card";
@@ -50,7 +50,7 @@ function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }
 				size="lg"
 				className={`w-full lg:max-w-xs justify-start transition-none ${drawnCard ? "opacity-100 cursor-pointer" : "opacity-20 pointer-events-none text-muted-foreground/50"}`}
 				data-splicestartindex={spliceStartIndex}
-				onClick={onPlace}
+				onClick={() => onPlace({ a, b })}
 				tabIndex={drawnCard ? 0 : -1}
 			>
 				{label}
@@ -74,7 +74,7 @@ interface PlacementOptionProps {
   before?: any;
   after?: any;
 	drawnCard: any;
-  onPlace: any;
+  onPlace: (placement: { a: string; b: string }) => void; 
 }
 
 function sortEventsByDate(events: any[]): any[] {
@@ -214,14 +214,14 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 		} else {
 			events.forEach((event, index) => {
 				if(correctPosition === -9) {
-					console.log('index', index, event.date)
+					// console.log('index', index, event.date)
 					if(event.date > drawnCard.date) {
 						correctPosition = index
 					}
 				}
 			})
 		}
-		console.log('correctPosition', correctPosition)
+		// console.log('correctPosition', correctPosition)
 	}
 
 	const onPlace = drawnCard? handleIncorrectMove : doNotDoAnything;
