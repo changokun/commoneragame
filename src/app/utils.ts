@@ -1,10 +1,10 @@
 import { Event, GameState } from "./types";
 
-export function formatEventDate(event: Event, settings: object = {}): string {
-	const year = parseInt(event.date, 10);
-	// console.log('format()', event, event.date, year)
-
-	if (isNaN(year)) return event.date;
+export function formatEventDate(date: string, settings: object = {}): string {
+	
+	const year = parseInt(date, 10);
+	
+	if (isNaN(year)) return date;
 
 	if (year < -5000) {
 		return `${Math.abs(year) + 2000} years ago`;
