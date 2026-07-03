@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router";
 import { ThemeProvider } from "./ThemeProvider";
 import { Footer } from "./Footer";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 export function RootLayout() {
   const location = useLocation();
@@ -16,7 +17,9 @@ export function RootLayout() {
         )}
 
         <main className={`flex-1 flex flex-col overflow-hidden ${!isPlayPage ? "px-6 py-8" : ""}`}>
-          <Outlet />
+					<ErrorBoundary onReset={() => window.location.reload()}>
+						<Outlet />
+					</ErrorBoundary>
         </main>
 
         {!isPlayPage && <Footer />}
