@@ -48,7 +48,7 @@ function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }
 			<Button
 				variant={drawnCard ? "secondary" : "outline"}
 				size="lg"
-				className={`w-full lg:max-w-xs justify-start transition-none ${drawnCard ? "opacity-100 cursor-pointer" : "opacity-20 pointer-events-none text-muted-foreground/50"}`}
+				className={`w-full justify-start transition-none ${drawnCard ? "opacity-100 cursor-pointer" : "opacity-20 pointer-events-none text-muted-foreground/50"}`}
 				data-splicestartindex={spliceStartIndex}
 				onClick={() => onPlace({ a, b })}
 				tabIndex={drawnCard ? 0 : -1}

@@ -6,8 +6,8 @@ export function formatEventDate(date: string, settings: object = {}): string {
 	
 	if (isNaN(year)) return date;
 
-	if (year < -5000) {
-		return `${Math.abs(year) + 2000} years ago`;
+	if (year < -9999) {
+		return `${new Intl.NumberFormat().format(Math.abs(year))} years ago`;
 	} else if (year < 0) {
 		return `${Math.abs(year)} BCE`;
 	} else if (year <= 1100) {
