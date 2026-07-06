@@ -116,7 +116,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       // Default error UI with detailed information
       return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="max-w-lg w-full shadow-2xl border-destructive dark:border-destructive/30">
+          <Card className="w-full shadow-2xl border-destructive dark:border-destructive/30">
             <div className="p-6">
               {/* Error icon and title */}
               <div className="flex items-start gap-4 mb-4">
