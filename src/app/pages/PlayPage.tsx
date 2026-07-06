@@ -81,6 +81,7 @@ export function PlayPage() {
 				if (data.state?.incorrectCardStack?.length > 0) {
 					data.state.incorrectCardStack = await Promise.all(
 						data.state.incorrectCardStack.map(async (cardOrId) => {
+							console.log('transform cardOrId', typeof cardOrId, cardOrId)
 							if (typeof cardOrId === 'string') {
 								return await getEventById(cardOrId);
 							} else if (cardOrId.title) {
@@ -92,9 +93,13 @@ export function PlayPage() {
 								event.strikes = cardOrId.strikes ? cardOrId.strikes : [];
 								// console.log('event', event)
 								return event;
+							} else {
+								console.error('oh fuck')
 							}
 						})
 					);
+					// Filter out null and undefined
+					// data.state.incorrectCardStack = transformedStack.filter(Boolean);
 				}
 				setGameState(data);
 				// Store game ID in localStorage for future visits
@@ -123,7 +128,7 @@ export function PlayPage() {
 					try {
 						const parsed = JSON.parse(storedSession) as UserSession;
 						// Validate that it has the required fields
-						console.log(parsed)
+						// console.log(parsed)
 						if (parsed && parsed._id && parsed.username !== undefined && parsed.isAnonymous !== undefined) {
 							setUserSession(parsed);
 						}
@@ -221,6 +226,25 @@ export function PlayPage() {
 	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
 
 
+	const getStrikeCount = (): number => {
+		if (!gameState) {
+			console.warn(`getStrikeCount() short circuit no gameState`)
+			return 0;
+		}
+		// get the lengths of all the card strikes
+		let ret = gameState.state.incorrectCardStack.reduce((count: number, card: any) => {
+			return count + (card.strikes ? card.strikes.length : 0);
+		}, 0);
+		// then we must also add any strikes in the drawnCard card.
+		console.log('getStrikeCount thinks this is drawnCard', drawnCard)
+		if(drawnCard && drawnCard.strikes) {
+			ret += drawnCard.strikes.length;
+		}
+
+		console.log(`getStrikeCount() says`, ret, typeof ret)
+		return ret
+	}
+
 	/**
 	 * Checks if the game has ended and whether it was a victory or defeat
 	 * Game ends in:
@@ -255,18 +279,8 @@ export function PlayPage() {
 		}
 
 		// Check for DEFEAT: Too many strikes in the incorrect stack
-		// Count total unique strikes across all incorrect cards
-		console.log('check for defeat gameState.state.incorrectCardStack', gameState.state.incorrectCardStack)
-		if(false) {
-
-			const totalStrikes = gameState.state.incorrectCardStack.reduce((count: number, card: any) => {
-				return count + (card.strikes ? card.strikes.length : 0);
-			}, 0);
-			
-			// console.log('totalStrikes', totalStrikes)
-			if (totalStrikes >= gameState.settings.strikeLimit) {
-				return { isGameOver: true, isVictory: false };
-			}
+		if (getStrikeCount() >= gameState.settings.strikeLimit) {
+			return { isGameOver: true, isVictory: false };
 		}
 
 		// Check for VICTORY: No more events to draw AND all events have been correctly placed
@@ -690,21 +704,18 @@ export function PlayPage() {
 		}
 	};
 
-	// todo this is not correct. need to count all strikes within each bd card.
-	let strikeCountdown = gameState.settings.strikeLimit - gameState.state.incorrectCardStack.length;
+	let strikeCountdown = gameState.settings.strikeLimit - getStrikeCount();
 
 	console.log('drawnCard before render', drawnCard)
 	let badRangeTexts:string[] = []
 	if(drawnCard?.strikes?.length) {
 		drawnCard.strikes.forEach(strike => {
-			console.log(strike)
 			if(strike.rangeKnownBad) {
 				badRangeTexts.push(strike.rangeKnownBad)
 			}
 		})
 	}
 
-	console.log('gameState.state.incorrectCardStack before rendder', gameState.state.incorrectCardStack)
 	// console.log('errorModal before render', errorModal)
 	return (
 		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col overflow-hidden relative`}>
@@ -795,8 +806,15 @@ export function PlayPage() {
 						{drawnCard && (
 							<Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
 								<div className="p-4">
-									<h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>{drawnCard.title || drawnCard.name || "Event"}</h3>
-									{badRangeTexts && (
+									<h3 className="font-semibold">
+									<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+    {drawnCard.strikes?.length ? 'X'.repeat(drawnCard.strikes.length) : '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'}
+</span>
+														{/* <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+														 */}
+														 {drawnCard.title || drawnCard.name || "Event"}
+														 </h3>
+									{!!badRangeTexts.length && (
 										<div className="knownBads flex flex-wrap gap-1 mt-4">
 											{badRangeTexts.map((t) => (
 												<span key={t} className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full whitespace-nowrap" title="This is based on the previous incorrect attempts to insert into the timeline">{t}</span>
@@ -847,24 +865,23 @@ export function PlayPage() {
 									<div className="space-y-2">
 										
 										{gameState.state.incorrectCardStack.map((card) => (
-												<div key={card._id}>
-													<Card
-														className={`p-4 ${isGameOver ? "cursor-default" : "cursor-pointer hover:bg-muted/50"}${newlyIncorrectId === card._id ? " card-glow-incorrect" : ""}`}
-														onClick={!isGameOver ? () => handleRedrawCard(card) : undefined}
-													>
-														<h3 className="font-semibold">
-															<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
-																{isGameOver ? formatEventDate(card.date) : 'X'.repeat(card.strikes?.length || 0)}
-															</span>
-															{card.title || card.name || "Event"}
-														</h3>
-														{card.description && (
-															<p className="text-sm mt-2">{card.description}</p>
-														)}
-													</Card>
-												</div>
-											))
-										}
+											<div key={card._id}>
+												<Card
+													className={`p-4 ${isGameOver ? "cursor-default" : "cursor-pointer hover:bg-muted/50"}${newlyIncorrectId === card._id ? " card-glow-incorrect" : ""}`}
+													onClick={!isGameOver ? () => handleRedrawCard(card) : undefined}
+												>
+													<h3 className="font-semibold">
+														<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+															{isGameOver ? formatEventDate(card.date) : 'X'.repeat(card.strikes?.length || 0)}
+														</span>
+														{card.title || card.name || "Event"}
+													</h3>
+													{card.description && (
+														<p className="text-sm mt-2">{card.description}</p>
+													)}
+												</Card>
+											</div>
+										))}
 										
 
 										{/* <h2>{strikeCountdown}</h2> */}
