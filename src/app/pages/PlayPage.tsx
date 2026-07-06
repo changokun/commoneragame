@@ -7,9 +7,9 @@ import { Timeline } from "../components/Timeline";
 import { StrikePlaceholderCard } from "../components/StrikePlaceholderCard";
 import { GameEndScreen } from "../components/GameEndScreen";
 import { EVENT_CACHE_KEY_PREFIX, USER_SESSION_KEY, CURRENT_GAME_KEY } from "../constants";
-import { Player, GameState, UserSession, Event } from "../types";
+import { Player, GameState, UserSession, Event, Strike } from "../types";
 import { formatEventDate } from "../utils";
-import { createNetworkErrorModal, ApiError, NetworkError, ErrorModalConfig, DevelopmentError } from "../errors";
+import { createNetworkErrorModal, ApiError, NetworkError, ErrorModalConfig, DevelopmentError, InvalidMoveError } from "../errors";
 import { ErrorModalDialog } from "../errors/ErrorModalDialog";
 
 
@@ -81,13 +81,14 @@ export function PlayPage() {
 				if (data.state?.incorrectCardStack?.length > 0) {
 					data.state.incorrectCardStack = await Promise.all(
 						data.state.incorrectCardStack.map(async (cardOrId) => {
+							console.log('transform', typeof cardOrId, cardOrId)
 							if (typeof cardOrId === 'string') {
 								return await getEventById(cardOrId);
 							} else if (cardOrId.title) {
 								return cardOrId;
-							} else if (cardOrId.eventId) {
+							} else if (cardOrId._id) {
 								// console.log('cardOrId', cardOrId)
-								const event = await getEventById(cardOrId.eventId)
+								const event = await getEventById(cardOrId._id)
 								// console.log('event', event)
 								event.strikes = cardOrId.strikes ? cardOrId.strikes : [];
 								// console.log('event', event)
@@ -102,14 +103,9 @@ export function PlayPage() {
 				localStorage.setItem(CURRENT_GAME_KEY, id);
 				console.log('just got this gamestate data', data)
 				// Check if there's a limbo event (drawn but not yet guessed)
-				// If so, load it as the drawn card using our helper function
 				if (data.state?.limbo) {
-					const limboEvent = await getEventById(data.state.limbo);
 					// Set the limbo event as the drawn card if we found it
-					if (limboEvent) {
-						setDrawnCard(limboEvent);
-						// in this case, the game data we just got should be correct as to gameState.remainingEventCount
-					}
+					setDrawnCard(data.state.limbo);
 				}
 
 				// now try to load the user
@@ -139,6 +135,7 @@ export function PlayPage() {
 
 					// No stored session, try to fetch from API
 					try {
+						console.log('LOADING A SESSION FROM THE API');
 						const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 						const response = await fetch(`${apiUrl}/user`);
 
@@ -259,13 +256,17 @@ export function PlayPage() {
 
 		// Check for DEFEAT: Too many strikes in the incorrect stack
 		// Count total unique strikes across all incorrect cards
-		const totalStrikes = gameState.state.incorrectCardStack.reduce((count: number, card: any) => {
-			return count + (card.strikes ? card.strikes.length : 0);
-		}, 0);
+		console.log('check for defeat gameState.state.incorrectCardStack', gameState.state.incorrectCardStack)
+		if(false) {
 
-		// console.log('totalStrikes', totalStrikes)
-		if (totalStrikes >= gameState.settings.strikeLimit) {
-			return { isGameOver: true, isVictory: false };
+			const totalStrikes = gameState.state.incorrectCardStack.reduce((count: number, card: any) => {
+				return count + (card.strikes ? card.strikes.length : 0);
+			}, 0);
+			
+			// console.log('totalStrikes', totalStrikes)
+			if (totalStrikes >= gameState.settings.strikeLimit) {
+				return { isGameOver: true, isVictory: false };
+			}
 		}
 
 		// Check for VICTORY: No more events to draw AND all events have been correctly placed
@@ -343,6 +344,7 @@ export function PlayPage() {
 		try {
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const idsParam = missingIds.join(",");
+			console.log('LOADING ONE OR MORE EVENTS FROM THE API', idsParam);
 			const response = await fetch(`${apiUrl}/events?ids=${idsParam}`);
 			const data = await response.json();
 
@@ -430,6 +432,7 @@ export function PlayPage() {
 		setIsPaused(true);
 
 		try {
+			console.log('DRAWING ONE EVENT FROM API')
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const response = await fetch(`${apiUrl}/games/${gameId}/draw`);
 			let data = await response.json();
@@ -481,6 +484,9 @@ export function PlayPage() {
 				}
 	
 			} else {
+				if(data.message?.indexOf('current event first') !== 0) {
+					throw new InvalidMoveError('We cannot draw a new event because there is already one in play, waiting for a player.')
+				}
 				throw new NetworkError('Trying to draw a new event but something went wrong')
 			}
 
@@ -501,6 +507,20 @@ export function PlayPage() {
 					}],
 					close: () => setErrorModal(null)
 				})
+
+			} else if (err instanceof InvalidMoveError) {
+				// show error modal - try again etc.
+				setErrorModal({
+					title: "Wait, what?",
+					message: err.message + ' Try reloading the page?',
+					userMay: [],
+					userMust: [{
+						text: "Cancel, maybe try later",
+						variant: 'cancel'
+					}],
+					close: () => setErrorModal(null)
+				})
+
 
 			} else if (err instanceof NetworkError) {
 				// show error modal - try again etc.
@@ -533,6 +553,7 @@ export function PlayPage() {
 
 			// Use the userSession._id to identify the user making the move
 			// This ensures the correct player is credited with the move
+			console.log('POSTING MOVE REPORT TO API')
 			const response = await fetch(`${apiUrl}/games/${gameId}/player/${userSession._id}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -578,10 +599,15 @@ export function PlayPage() {
 	}
 
 	const handleIncorrectMove = async (placement: { a: string; b: string }) => {
-		console.log("WRONG BOOOO", isSpectator, isUserTurn, placement)
+		console.log("WRONG BOOOO", isSpectator, isUserTurn, placement, 'drawnCard in memory here on api', drawnCard)
 		const {a, b} = placement
 		// Spectators cannot make moves
 		if (isSpectator || !isUserTurn) return;
+
+		if ( ! drawnCard) {
+			console.error('no drawn card in memory but user is reporting incorrect move')
+			return;
+		}
 
 		// Store the drawn card ID before clearing it, so we can use it below
 		const drawnCardId = drawnCard._id;
@@ -590,12 +616,12 @@ export function PlayPage() {
 		// This ensures strikes are attributed to the correct player
 		if (!userSession) return;
 
-		const strike = {playerId: userSession._id}
+		const strike:Strike = {playerId: userSession._id};
 		if(a && b) {
 			strike.rangeKnownBad = `NOT before ${b} and NOT after ${a}`
 		} else if (a) {
 			strike.rangeKnownBad = `NOT after ${a}`
-		} else if (a) {
+		} else if (b) {
 			strike.rangeKnownBad = `NOT before ${b}`
 		}
 
@@ -648,6 +674,7 @@ export function PlayPage() {
 			});
 			setDrawnCard(card);
 
+			console.log('POSTING TO UDPATE RE_DRAWN CARD. NO DATA, JUST THE ID ON THE URL', card._id)
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const response = await fetch(`${apiUrl}/games/${gameId}/draw/${card._id}`, {
 				method: 'POST'
@@ -660,10 +687,19 @@ export function PlayPage() {
 		}
 	};
 
-
+	// todo this is not correct. need to count all strikes within each bd card.
 	let strikeCountdown = gameState.settings.strikeLimit - gameState.state.incorrectCardStack.length;
 
+	console.log('drawnCard before render', drawnCard)
+	let badRangeText = ''
+	if(drawnCard?.strikes?.length) {
+		drawnCard.strikes.forEach(strike => {
+			console.log(strike)
+			badRangeText += `| ${strike.rangeKnownBad}`
+		})
+	}
 
+	console.log('gameState.state.incorrectCardStack before rendder', gameState.state.incorrectCardStack)
 	// console.log('errorModal before render', errorModal)
 	return (
 		<div className={`${isPaused ? "is-paused " : ""}h-full w-full flex flex-col overflow-hidden relative`}>
@@ -757,6 +793,12 @@ export function PlayPage() {
 									<h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>{drawnCard.title || drawnCard.name || "Event"}</h3>
 									{drawnCard.description && (
 										<p className="text-sm mt-2">{drawnCard.description}</p>
+									)}
+									{badRangeText && (
+										<div>
+											<hr />
+											{badRangeText}
+										</div>
 									)}
 								</div>
 							</Card>
