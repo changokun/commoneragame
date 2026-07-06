@@ -884,8 +884,12 @@ export function PlayPage() {
 										))}
 										
 
-										{/* <h2>{strikeCountdown}</h2> */}
-										{[...Array(strikeCountdown)].map((_, i) => <StrikePlaceholderCard id={`sph${strikeCountdown - i}`} />)}
+
+										{strikeCountdown === 1? (
+											<StrikePlaceholderCard id={`imminent`} />
+										) : (
+												[...Array(strikeCountdown)].map((_, i) => <StrikePlaceholderCard id={`sph${strikeCountdown - i}`} />)
+										)}
 
 									</div>
 								</div>
