@@ -81,7 +81,6 @@ export function PlayPage() {
 				if (data.state?.incorrectCardStack?.length > 0) {
 					data.state.incorrectCardStack = await Promise.all(
 						data.state.incorrectCardStack.map(async (cardOrId) => {
-							console.log('transform', typeof cardOrId, cardOrId)
 							if (typeof cardOrId === 'string') {
 								return await getEventById(cardOrId);
 							} else if (cardOrId.title) {
@@ -94,8 +93,7 @@ export function PlayPage() {
 								// console.log('event', event)
 								return event;
 							}
-						}
-						)
+						})
 					);
 				}
 				setGameState(data);
@@ -105,7 +103,9 @@ export function PlayPage() {
 				// Check if there's a limbo event (drawn but not yet guessed)
 				if (data.state?.limbo) {
 					// Set the limbo event as the drawn card if we found it
-					setDrawnCard(data.state.limbo);
+					// data.state.limbo should be a prototype with an _id. expand that and then attach whatever else is in data.state.limbo
+					const expandedLimbo = await getEventById(data.state.limbo._id);
+					setDrawnCard({...expandedLimbo, ...data.state.limbo});
 				}
 
 				// now try to load the user
@@ -618,11 +618,14 @@ export function PlayPage() {
 
 		const strike:Strike = {playerId: userSession._id};
 		if(a && b) {
-			strike.rangeKnownBad = `NOT before ${b} and NOT after ${a}`
+			// strike.rangeKnownBad = `NOT before ${b} and NOT after ${a}`
+			strike.rangeKnownBad = `Must be before ${a} or after ${b}`
 		} else if (a) {
-			strike.rangeKnownBad = `NOT after ${a}`
+			// strike.rangeKnownBad = `NOT after ${a}`
+			strike.rangeKnownBad = `Must be before ${a}`
 		} else if (b) {
-			strike.rangeKnownBad = `NOT before ${b}`
+			// strike.rangeKnownBad = `NOT before ${b}`
+			strike.rangeKnownBad = `Must be after ${b}`
 		}
 
 		if (drawnCard.strikes) {
@@ -691,11 +694,13 @@ export function PlayPage() {
 	let strikeCountdown = gameState.settings.strikeLimit - gameState.state.incorrectCardStack.length;
 
 	console.log('drawnCard before render', drawnCard)
-	let badRangeText = ''
+	let badRangeTexts:string[] = []
 	if(drawnCard?.strikes?.length) {
 		drawnCard.strikes.forEach(strike => {
 			console.log(strike)
-			badRangeText += `| ${strike.rangeKnownBad}`
+			if(strike.rangeKnownBad) {
+				badRangeTexts.push(strike.rangeKnownBad)
+			}
 		})
 	}
 
@@ -791,14 +796,15 @@ export function PlayPage() {
 							<Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
 								<div className="p-4">
 									<h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>{drawnCard.title || drawnCard.name || "Event"}</h3>
+									{badRangeTexts && (
+										<div className="knownBads flex flex-wrap gap-1 mt-4">
+											{badRangeTexts.map((t) => (
+												<span key={t} className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full whitespace-nowrap" title="This is based on the previous incorrect attempts to insert into the timeline">{t}</span>
+											))}
+										</div>
+									)}
 									{drawnCard.description && (
 										<p className="text-sm mt-2">{drawnCard.description}</p>
-									)}
-									{badRangeText && (
-										<div>
-											<hr />
-											{badRangeText}
-										</div>
 									)}
 								</div>
 							</Card>
