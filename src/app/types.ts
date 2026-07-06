@@ -72,7 +72,7 @@ export interface GameState {
     currentEventIndex: number;
     agreedEvents: any[];   // Events that all players have agreed on
     incorrectCardStack: any[];  // Events that were guessed incorrectly
-    limbo?: string;        // Event ID of a drawn card that hasn't been guessed yet
+    limbo?: object;        // entire event object that has been drawn but not yet guessed at.
   };
   players: Player[];       // Array of Player objects in this game
   remainingEventCount?: number;  // How many events are left to draw
@@ -96,6 +96,10 @@ export interface Event {
   // Future: could add category, difficulty, imageUrl, etc.
 }
 
+export interface Strike {
+	playerId: string;
+	rangeKnownBad?: string;
+}
 // ============================================================================
 // GAME END TYPES
 // ============================================================================
