@@ -111,6 +111,7 @@ export function PlayPage() {
 					// data.state.limbo should be a prototype with an _id. expand that and then attach whatever else is in data.state.limbo
 					const expandedLimbo = await getEventById(data.state.limbo._id);
 					setDrawnCard({...expandedLimbo, ...data.state.limbo});
+					setIsPaused(true);
 				}
 
 				// now try to load the user
