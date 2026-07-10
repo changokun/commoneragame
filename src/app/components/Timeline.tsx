@@ -3,25 +3,26 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { EVENT_CACHE_KEY_PREFIX } from "../constants";
 import { formatEventDate } from "../utils";
+import { EventCard } from "./EventCard";
 
-interface TimelineCardProps {
-  event: any;
-  index: number;
-	isNew?: boolean;
-}
+// interface TimelineCardProps {
+//   event: any;
+//   index: number;
+// 	isNew?: boolean;
+// }
 
-function TimelineCard({ event, index, isNew }: TimelineCardProps) {
-  return (
-    <Card key={index} className={`p-4 timeline-card${isNew ? " card-glow" : ""}`}>
-      <div className="space-y-2">
-        <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{formatEventDate(event.date)}</span> {event.title || `Event ${index + 1}`}</h3>
-        {event.description && (
-          <p className="text-sm">{event.description}</p>
-        )}
-      </div>
-    </Card>
-  );
-}
+// function TimelineCard({ event, index, isNew }: TimelineCardProps) {
+//   return (
+//     <Card key={index} className={`p-4 timeline-card${isNew ? " card-glow" : ""}`}>
+//       <div className="space-y-2">
+//         <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{formatEventDate(event.date)}</span> {event.title || `Event ${index + 1}`}</h3>
+//         {event.description && (
+//           <p className="text-sm">{event.description}</p>
+//         )}
+//       </div>
+//     </Card>
+//   );
+// }
 
 function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }: PlacementOptionProps) {
 	const b = formatEventDate(before?.date)
@@ -246,14 +247,19 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 	)
 
 	events.forEach((event, index) => {
-		const isNew = event._id === newlyPlacedId;
+		// const isNew = event._id === newlyPlacedId;
 		items.push(
-			<div
+			// <div
+			// 	key={index}
+			// 	className="timeline-card-container relative"
+			// >
+			<EventCard
 				key={index}
-				className="timeline-card-container relative"
-			>
-					<TimelineCard event={event} index={index} isNew={event._id === newlyPlacedId} />
-			</div>
+				variant="timeline"
+				event={event}
+				isNewlyPlaced={newlyPlacedId === event._id}
+			/>
+			// </div>
 		)
 		
 		items.push(
