@@ -1,7 +1,29 @@
 import { Card } from "./ui/card";
-import { Skull, X } from "lucide-react";
+import { Skull, X, ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Event } from "../types";
 import { formatEventDate } from "../utils";
+
+
+interface EventCardProps {
+  variant: 'drawn' | 'timeline' | 'incorrect';
+  event: Event;
+  onClick?: () => void;
+  isNewlyPlaced?: boolean;
+  badRangeTexts?: string[];
+  strikeCount?: number;
+  /**
+   * Global expanded state - when provided, overrides local state
+   * Used for "collapse/expand all" feature
+   */
+  allExpanded?: boolean | null;
+  /**
+   * Callback when expand state changes
+   * Used to sync with parent for global control
+   */
+  onExpandChange?: (isExpanded: boolean, eventId: string) => void;
+}
+
 
 /**
  * EventCard - Unified component for displaying events in different contexts
@@ -16,15 +38,6 @@ import { formatEventDate } from "../utils";
  * @param badRangeTexts - Array of text showing known bad ranges (drawn card only)
  * @param strikeCount - Number of strikes on this card (incorrect card only)
  */
-interface EventCardProps {
-  variant: 'drawn' | 'timeline' | 'incorrect';
-  event: Event;
-  onClick?: () => void;
-  isNewlyPlaced?: boolean;
-  badRangeTexts?: string[];
-  strikeCount?: number;
-}
-
 export function EventCard({
   variant,
   event,
@@ -32,12 +45,44 @@ export function EventCard({
   isNewlyPlaced = false,
   badRangeTexts,
   strikeCount,
+  allExpanded,
+  onExpandChange,
 }: EventCardProps) {
+  // Local expanded state for this card
+  const [isExpanded, setIsExpanded] = useState<boolean | null>(true);
+
+  // Determine display state: use global if provided, else local
+  const displayExpanded = allExpanded !== null ? allExpanded : isExpanded;
+
+  // Sync local state when global changes
+  useEffect(() => {
+    if (allExpanded !== null) {
+      setIsExpanded(allExpanded);
+    }
+  }, [allExpanded]);
+
   // ==========================================================================
-  // COMMON PROPS - All variants share these
+  // CHEVRON TOGGLE - Only for timeline and incorrect cards
   // ==========================================================================
-  const showTitle = true;
-  const showDescription = Boolean(event.description);
+  // Only show chevron for cards that can be collapsed
+  const showChevron = (variant === 'timeline' || variant === 'incorrect') && Boolean(event.description);
+
+	const handleToggleExpand = (e: React.MouseEvent) => {
+		e.stopPropagation();
+	
+		// When allExpanded is active, clicking a chevron should:
+		// 1. Set this card's local state to the opposite of the global state
+		// 2. Tell parent to clear the global override
+		if (allExpanded !== null) {
+			setIsExpanded(!allExpanded);
+			onExpandChange?.(!allExpanded, event._id);
+		} else {
+			// Normal toggle - just flip local state
+			setIsExpanded(prev => !prev);
+			onExpandChange?.(!isExpanded, event._id);
+		}
+	};
+	
 
   // ==========================================================================
   // VARIANT-SPECIFIC RENDERING
@@ -105,14 +150,14 @@ export function EventCard({
    */
   const variantCardClasses = {
     drawn: "absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 z-30",
-    timeline: "w-full mb-4", // or whatever your timeline needs
+    timeline: "w-full mb-4",
     incorrect: "w-full cursor-pointer hover:bg-muted/50",
   };
 
   const cardClasses = `${baseCardClasses} ${shadowClasses} ${variantCardClasses[variant]} ${
     isNewlyPlaced ? "card-glow" : ""
-	}${
-		isNewlyPlaced && variant === 'incorrect' ? "-incorrect" : ""
+  }${
+    isNewlyPlaced && variant === 'incorrect' ? "-incorrect" : ""
   }`;
 
 	console.log(`cardClasses (${variant}, ${isNewlyPlaced})`, cardClasses)
@@ -122,9 +167,28 @@ export function EventCard({
 
 
 
-	return (
+  return (
     <Card className={cardClasses} onClick={onClick}>
-      <div className="p-4">
+      <div className="p-4 relative">
+        {/* ================================================================ */}
+        {/* CHEVRON BUTTON - Upper right, large hitbox */}
+        {/* ================================================================ */}
+        {showChevron && (
+          <button
+            onClick={handleToggleExpand}
+            // Large hitbox: extends beyond card padding with negative margins
+            className="absolute top-0 right-0 p-6 -m-1 rounded-md cursor-pointer text-muted-foreground transition-transform duration-200"
+            aria-label={displayExpanded ? "Collapse description" : "Expand description"}
+            aria-expanded={displayExpanded}
+          >
+            <ChevronDown
+              className={`w-5 h-5 transition-transform duration-200 ${
+                displayExpanded ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+        )}
+
         <h3 className="font-semibold">
           {renderIndicator()}
           {event.title || event.name || "Event"}
@@ -132,7 +196,8 @@ export function EventCard({
 
         {renderKnownBads()}
 
-        {showDescription && (
+        {/* Description only shown when expanded AND we have one */}
+        {displayExpanded && event.description && (
           <p className="text-sm mt-2">{event.description}</p>
         )}
       </div>

@@ -56,6 +56,16 @@ export function PlayPage() {
 	const [newlyIncorrectId, setNewlyIncorrectId] = useState<string | null>(null);
 	const [showEndScreen, setShowEndScreen] = useState(true);
 	const [errorModal, setErrorModal] = useState<ErrorModalConfig | null>(null);
+	const [allExpanded, setAllExpanded] = useState<boolean | null>(true);
+	
+
+	
+
+
+
+
+
+
 
 	if (!gameId) {
 		// no game? go to home page, where lots of options should exist.
@@ -227,6 +237,19 @@ export function PlayPage() {
 	// no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
 	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
 
+	const handleToggleAll = () => {
+		// Set the global override
+		setAllExpanded(prev => !prev);
+	};
+	
+	const handleExpandChange = (expanded: boolean, id: string) => {
+		// If any card is toggled individually while allExpanded is active,
+		// clear the global override so individual states take over
+		if (allExpanded !== null) {
+			setAllExpanded(null);
+		}
+	};
+	
 
 	const getStrikeCount = (): number => {
 		if (!gameState) {
@@ -775,6 +798,7 @@ export function PlayPage() {
 								</span>
 							))
 						)}
+						<Button onClick={handleToggleAll}>TOGGLE</Button>
 					</div>
 				</div>
 			</header>
@@ -801,6 +825,8 @@ export function PlayPage() {
 								handleCorrectMove={handleCorrectMove}
 								handleIncorrectMove={handleIncorrectMove}
 								newlyPlacedId={newlyPlacedId}
+								allExpanded={allExpanded}
+								onExpandChange={handleExpandChange}
 							/>
 						{/* </div> */}
 
@@ -812,6 +838,9 @@ export function PlayPage() {
 								badRangeTexts={badRangeTexts}
 								isNewlyPlaced={false}
 							/>
+
+
+
 // 							<Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
 // 								<div className="p-4">
 // 									<h3 className="font-semibold">
@@ -879,6 +908,8 @@ export function PlayPage() {
 												strikeCount={card.strikes?.length}
 												onClick={() => handleRedrawCard(card)}
 												isNewlyPlaced={newlyIncorrectId === card._id}
+												allExpanded={allExpanded}
+												onExpandChange={handleExpandChange}
 											/>
 										))}
 										{/* {gameState.state.incorrectCardStack.map((card) => (

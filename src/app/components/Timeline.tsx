@@ -68,6 +68,8 @@ interface TimelineProps {
 	handleIncorrectMove?: any;
 	newlyPlacedId?: string | null;
 	onPlace?: (placement: { after: string | null; before: string | null }) => void;
+	allExpanded: boolean | null;
+	onExpandChange: (expanded: boolean, id: string) => void;
 }
 
 interface PlacementOptionProps {
@@ -90,7 +92,7 @@ function doNotDoAnything() {
 	console.log('nuttin doin')
 }
 
-export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMove, handleIncorrectMove, newlyPlacedId }: TimelineProps) {
+export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMove, handleIncorrectMove, newlyPlacedId, allExpanded, onExpandChange }: TimelineProps) {
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -258,6 +260,8 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 				variant="timeline"
 				event={event}
 				isNewlyPlaced={newlyPlacedId === event._id}
+				allExpanded={allExpanded}
+				onExpandChange={onExpandChange}
 			/>
 			// </div>
 		)
