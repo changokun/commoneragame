@@ -283,7 +283,8 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 
 	return (
 		// the height on this seems to be unimportant, but we may want it if we add a fixed footer.
-		<div className="timeline space-y-4 overflow-y-auto h-[calc(100vh-53px)] px-4">
+		// h-[calc(100vh-53px)]
+		<div className="timeline space-y-4 overflow-y-auto px-4">
 			{items}
 		</div>
 	)

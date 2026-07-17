@@ -12,6 +12,8 @@ import { formatEventDate } from "../utils";
 import { createNetworkErrorModal, ApiError, NetworkError, ErrorModalConfig, DevelopmentError, InvalidMoveError } from "../errors";
 import { ErrorModalDialog } from "../errors/ErrorModalDialog";
 import { EventCard } from "../components/EventCard";
+import { DrawPanelHorizontal } from "../components/DrawPanelHorizontal";
+import { DrawPanelVertical } from "../components/DrawPanelVertical";
 
 
 export function PlayPage() {
@@ -775,11 +777,16 @@ export function PlayPage() {
 					</div>
 				</div>
 
-				{/* Row 2 (mobile) / inline (desktop): status pill + stats */}
+				{/* Row 2 (mobile) / inline (desktop): status pill + spectator + stats */}
 				<div className="flex items-center gap-3 flex-wrap">
 					<span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">
 						{statusText}
 					</span>
+					{isSpectator && (
+						<span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded whitespace-nowrap">
+							Spectating
+						</span>
+					)}
 
 					<div className="flex items-center gap-3 text-xs text-muted-foreground">
 						{isCollaborative ? (
@@ -803,18 +810,29 @@ export function PlayPage() {
 				</div>
 			</header>
 
+			{/* Mobile: Draw + Incorrect Stack Row - shown below header on small screens */}
+			{isUserTurn && (
+				<div className="lg:hidden flex-shrink-0 border-b border-border">
+					<DrawPanelHorizontal
+						onDraw={handleDrawCard}
+						incorrectCards={gameState.state.incorrectCardStack}
+						drawStackEmpty={drawStackEmpty}
+						isGameOver={isGameOver}
+						onRedraw={handleRedrawCard}
+						newlyIncorrectId={newlyIncorrectId}
+						allExpanded={allExpanded}
+						onExpandChange={handleExpandChange}
+					/>
+				</div>
+			)}
+
 			{/* Main game area */}
 			<div className="flex-1 flex justify-center overflow-hidden relative">
 				<div className="w-full max-w-[1200px] flex flex-col lg:flex-row overflow-hidden relative">
 					{/* Desktop: Left Column - Timeline */}
 					{/* Mobile Waiting: Stacked section */}
-					<div className={`flex flex-col h-[calc(100vh-53px)] lg:max-w-[800px] lg:flex-1 relative z-20`}>
-						{/* <div className="p-4 pb-0">
-          <h2 className="text-xl font-semibold">Timeline</h2>
-          <p className="text-sm text-muted-foreground">
-            {isCollaborative ? "Shared Timeline" : "Your Timeline"}
-          </p>
-        </div> */}
+					<div className={`flex flex-col h-[calc(100vh-89px-49px)] lg:h-[calc(100vh-53px)] lg:max-w-[800px] lg:flex-1 relative z-20 overflow-y-auto`}>
+
 
 						{/* Timeline Cards - scrollable container */}
 						{/* <div className="flex-1 p-4 pt-0"> */}
@@ -868,81 +886,20 @@ export function PlayPage() {
 
 					{/* Desktop: Middle Column - Draw + Incorrect Stack */}
 					{/* Mobile Waiting: Stacked section */}
+					{/* h-[calc(100vh-120px)] */}
 					{isUserTurn && (
-						<div className={`w-full lg:max-w-[400px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-border p-4 h-[calc(100vh-120px)] overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
-							<div className="space-y-4">
-								{/* Draw Button - Only show for participants who are waiting for their turn (not spectators) */}
-								<div>
-									<Button
-										className="w-full"
-										size="lg"
-										onClick={handleDrawCard}
-										disabled={isPaused || drawStackEmpty || isGameOver}
-									>
-										{drawStackEmpty ? "No More Events" : "Draw New Event…"}
-									</Button>
-								</div>
-
-								{/* Spectator Message - Only show for spectators */}
-								{isSpectator && (
-									<div className="p-4 border rounded-lg bg-muted/50">
-										<p className="text-sm text-center text-muted-foreground">
-											This is the current state of the game that other people are playing. It does not automatically update, you can try refreshing, but really this is not developed.
-										</p>
-									</div>
-								)}
-
-								{/* Incorrect Guesses Stack */}
-								<div>
-									{gameState.state.incorrectCardStack.length > 0 ? (
-										<h3 className="text-sm font-semibold mb-2">
-											{drawStackEmpty ? `…and ${gameState.state.incorrectCardStack.length} incorrect guesses` : "…or try one of these again:"}
-										</h3>
-									) : ''}
-									<div className="space-y-2">
-										{gameState.state.incorrectCardStack.map((card) => (
-											<EventCard
-												key={card._id}
-												variant="incorrect"
-												event={card}
-												strikeCount={card.strikes?.length}
-												onClick={() => handleRedrawCard(card)}
-												isNewlyPlaced={newlyIncorrectId === card._id}
-												allExpanded={allExpanded}
-												onExpandChange={handleExpandChange}
-											/>
-										))}
-										{/* {gameState.state.incorrectCardStack.map((card) => (
-											<div key={card._id}>
-												<Card
-													className={`p-4 ${isGameOver ? "cursor-default" : "cursor-pointer hover:bg-muted/50"}${newlyIncorrectId === card._id ? " card-glow-incorrect" : ""}`}
-													onClick={!isGameOver ? () => handleRedrawCard(card) : undefined}
-												>
-													<h3 className="font-semibold">
-														<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
-															{isGameOver ? formatEventDate(card.date) : 'X'.repeat(card.strikes?.length || 0)}
-														</span>
-														{card.title || card.name || "Event"}
-													</h3>
-													{card.description && (
-														<p className="text-sm mt-2">{card.description}</p>
-													)}
-												</Card>
-											</div>
-										))} */}
-										
-
-
-										{strikeCountdown === 1? (
-											<StrikePlaceholderCard id={`imminent`} />
-										) : (
-												[...Array(strikeCountdown)].map((_, i) => <StrikePlaceholderCard id={`sph${strikeCountdown - i}`} />)
-										)}
-
-									</div>
-								</div>
+						<div className={`hidden lg:block lg:max-w-[400px] lg:flex-shrink-0 border-l border-border p-4 overflow-y-auto ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
+								<DrawPanelVertical
+									onDraw={handleDrawCard}
+									incorrectCards={gameState.state.incorrectCardStack}
+									drawStackEmpty={drawStackEmpty}
+									isGameOver={isGameOver}
+									onRedraw={handleRedrawCard}
+									newlyIncorrectId={newlyIncorrectId}
+									allExpanded={allExpanded}
+									onExpandChange={handleExpandChange}
+								/>
 							</div>
-						</div>
 					)}
 
 

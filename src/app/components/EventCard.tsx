@@ -22,6 +22,10 @@ interface EventCardProps {
    * Used to sync with parent for global control
    */
   onExpandChange?: (isExpanded: boolean, eventId: string) => void;
+  /**
+   * Additional CSS classes for the root Card element
+   */
+  className?: string;
 }
 
 
@@ -47,6 +51,7 @@ export function EventCard({
   strikeCount,
   allExpanded,
   onExpandChange,
+  className,
 }: EventCardProps) {
   // Local expanded state for this card
   const [isExpanded, setIsExpanded] = useState<boolean | null>(true);
@@ -98,21 +103,21 @@ export function EventCard({
     switch (variant) {
       case 'drawn':
         return (
-          <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+          <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 me-4">
             {event.strikes?.length ? 'X'.repeat(event.strikes.length) : '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'}
           </span>
         );
 
       case 'timeline':
         return (
-          <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+          <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 me-4">
             {formatEventDate(event.date)}
           </span>
         );
 
       case 'incorrect':
         return (
-          <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
+          <span className="year my-2 rounded-md bg-zinc-100 px-2 py-0 lg:px-3 lg:py-1 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 me-2 lg:me-4">
             {'X'.repeat(strikeCount || event.strikes?.length || 0)}
           </span>
         );
@@ -142,14 +147,14 @@ export function EventCard({
   /**
    * Base card classes that all variants share
    */
-  const baseCardClasses = "event-card border-secondary-foreground border-1";
+  const baseCardClasses = `event-card ${variant} border-secondary-foreground border-1`;
   const shadowClasses = variant === 'drawn' ? "shadow-2xl" : "shadow-lg";
 
   /**
    * Variant-specific card classes
    */
   const variantCardClasses = {
-    drawn: "absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 z-30",
+    drawn: "absolute z-30",
     timeline: "w-full mb-4",
     incorrect: "w-full cursor-pointer hover:bg-muted/50",
   };
@@ -160,7 +165,7 @@ export function EventCard({
     isNewlyPlaced && variant === 'incorrect' ? "-incorrect" : ""
   }`;
 
-	console.log(`cardClasses (${variant}, ${isNewlyPlaced})`, cardClasses)
+	// console.log(`cardClasses (${variant}, ${isNewlyPlaced})`, cardClasses)
 
 
 
@@ -168,8 +173,8 @@ export function EventCard({
 
 
   return (
-    <Card className={cardClasses} onClick={onClick}>
-      <div className="p-4 relative">
+    <Card className={`${cardClasses}${className ? ' ' + className : ''}`} onClick={onClick}>
+      <div className="event-card-liner p-4 relative">
         {/* ================================================================ */}
         {/* CHEVRON BUTTON - Upper right, large hitbox */}
         {/* ================================================================ */}
@@ -177,7 +182,7 @@ export function EventCard({
           <button
             onClick={handleToggleExpand}
             // Large hitbox: extends beyond card padding with negative margins
-            className="absolute top-0 right-0 p-6 -m-1 rounded-md cursor-pointer text-muted-foreground transition-transform duration-200"
+            className="collapser absolute top-0 right-0 md:p-4 lg:p-6 -m-1 rounded-md cursor-pointer text-muted-foreground transition-transform duration-200"
             aria-label={displayExpanded ? "Collapse description" : "Expand description"}
             aria-expanded={displayExpanded}
           >
@@ -197,7 +202,7 @@ export function EventCard({
         {renderKnownBads()}
 
         {/* Description only shown when expanded AND we have one */}
-        {displayExpanded && event.description && (
+        {event.description && (displayExpanded || variant === 'drawn') && (
           <p className="text-sm mt-2">{event.description}</p>
         )}
       </div>
