@@ -512,12 +512,12 @@ export function NewGamePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">0 (Any mistake ends the game)</SelectItem>
-                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="1">1 (Any mistake ends the game)</SelectItem>
                     <SelectItem value="2">2</SelectItem>
                     <SelectItem value="3">3</SelectItem>
                     <SelectItem value="5">5</SelectItem>
                     <SelectItem value="8">8</SelectItem>
+                    <SelectItem value="13">13</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
