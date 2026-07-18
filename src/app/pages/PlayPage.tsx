@@ -236,7 +236,7 @@ export function PlayPage() {
 
 
 	// no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
-	const drawStackEmpty = !gameState?.remainingEventCount || gameState.remainingEventCount <= 0;
+	const drawStackEmpty = ! drawnCard && (!gameState?.remainingEventCount || gameState.remainingEventCount <= 0);
 
 	const handleToggleAll = () => {
 		// Set the global override
@@ -856,31 +856,6 @@ export function PlayPage() {
 								badRangeTexts={badRangeTexts}
 								isNewlyPlaced={false}
 							/>
-
-
-
-// 							<Card className="absolute -right-20 top-1/2 -translate-y-1/2 w-64 lg:w-88 min-h-40 shadow-2xl border-secondary-foreground border-1 z-30">
-// 								<div className="p-4">
-// 									<h3 className="font-semibold">
-// 									<span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-red-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">
-//     {drawnCard.strikes?.length ? 'X'.repeat(drawnCard.strikes.length) : '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'}
-// </span>
-// 														{/* <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-// 														 */}
-// 														 {drawnCard.title || drawnCard.name || "Event"}
-// 														 </h3>
-// 									{!!badRangeTexts.length && (
-// 										<div className="knownBads flex flex-wrap gap-1 mt-4">
-// 											{badRangeTexts.map((t) => (
-// 												<span key={t} className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full whitespace-nowrap" title="This is based on the previous incorrect attempts to insert into the timeline">{t}</span>
-// 											))}
-// 										</div>
-// 									)}
-// 									{drawnCard.description && (
-// 										<p className="text-sm mt-2">{drawnCard.description}</p>
-// 									)}
-// 								</div>
-// 							</Card>
 						)}
 					</div>
 
