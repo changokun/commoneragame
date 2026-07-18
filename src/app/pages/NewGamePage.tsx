@@ -3,12 +3,13 @@ import { useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { ArrowLeft, Loader2, X } from "lucide-react";
+import { ArrowLeft, HelpCircle, Loader2, X } from "lucide-react";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Slider } from "../components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Badge } from "../components/ui/badge";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../components/ui/tooltip";
 
 type GameMode = "competitive" | "collaborative" | null;
 type DeviceMode = "single" | "multiple" | null;
@@ -19,17 +20,22 @@ interface FormData {
   playerType: PlayerType;
   deviceMode: DeviceMode;
   playerNames: string[];
-  maxEvents: number;
+  // maxEvents: number;
   strikeLimit: number;
+  targetScore: number;
   beginningFrom: string;
+  beginningFromNumber: string;
+  beginningFromSuffix: string;
   upThrough: string;
+  upThroughNumber: string;
+  upThroughSuffix: string;
   geographicLimits: string[];
   topics: string[];
 }
 
 interface Preset {
   name: string;
-  maxEvents: number;
+  // maxEvents: number;
   strikeLimit: number;
   beginningFrom: string;
   upThrough: string;
@@ -40,7 +46,7 @@ interface Preset {
 const PRESETS: Preset[] = [
   {
     name: "Roman Art History",
-    maxEvents: 30,
+    // maxEvents: 30,
     strikeLimit: 3,
     beginningFrom: "100 BCE",
     upThrough: "400 CE",
@@ -49,7 +55,7 @@ const PRESETS: Preset[] = [
   },
   {
     name: "World Wars",
-    maxEvents: 50,
+    // maxEvents: 50,
     strikeLimit: 5,
     beginningFrom: "1914",
     upThrough: "1945",
@@ -58,7 +64,7 @@ const PRESETS: Preset[] = [
   },
   {
     name: "Ancient History",
-    maxEvents: 40,
+    // maxEvents: 40,
     strikeLimit: 3,
     beginningFrom: "4000 BCE",
     upThrough: "500 CE",
@@ -89,6 +95,71 @@ const TOPIC_OPTIONS = [
   "Astronomy",
 ];
 
+// Time suffix options for composite date inputs
+const TIME_SUFFIX_OPTIONS = [
+  "billion years ago",
+  "million years ago",
+  "thousand years ago",
+  "years ago",
+  "BCE",
+  "CE",
+];
+
+/**
+ * CompositeDateInput - A component that combines a numeric input with a time suffix dropdown
+ * This allows users to enter dates like "42 million years ago" as separate number and suffix
+ * which are then combined into a single string value for API submission
+ * 
+ * @param numberValue - The numeric part of the date (e.g., "42")
+ * @param suffixValue - The suffix part of the date (e.g., "million years ago")
+ * @param onNumberChange - Callback when the number input changes
+ * @param onSuffixChange - Callback when the suffix dropdown changes
+ * @param placeholder - Placeholder text for the number input
+ */
+function CompositeDateInput({
+  numberValue,
+  suffixValue,
+  onNumberChange,
+  onSuffixChange,
+  placeholder,
+}: {
+  numberValue: string;
+  suffixValue: string;
+  onNumberChange: (value: string) => void;
+  onSuffixChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="flex gap-2">
+      {/* Numeric input - only allows digits */}
+      <Input
+        type="text"
+        value={numberValue}
+        onChange={(e) => {
+          // Only allow numeric input - remove all non-digit characters
+          const value = e.target.value.replace(/\D/g, '');
+          onNumberChange(value);
+        }}
+        placeholder={placeholder}
+        className="flex-1"
+      />
+      {/* Suffix dropdown */}
+      <Select value={suffixValue} onValueChange={onSuffixChange}>
+        <SelectTrigger className="w-48">
+          <SelectValue placeholder="Select suffix" />
+        </SelectTrigger>
+        <SelectContent>
+          {TIME_SUFFIX_OPTIONS.map((suffix) => (
+            <SelectItem key={suffix} value={suffix}>
+              {suffix}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export function NewGamePage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>({
@@ -96,10 +167,15 @@ export function NewGamePage() {
     playerType: null,
     deviceMode: null,
     playerNames: [""],
-    maxEvents: 30,
+    // maxEvents: 30,
     strikeLimit: 3,
+    targetScore: 10,
     beginningFrom: "4000 BCE",
-    upThrough: "2026 CE",
+    beginningFromNumber: "4000",
+    beginningFromSuffix: "BCE",
+    upThrough: `${new Date().getFullYear()} CE`,
+    upThroughNumber: String(new Date().getFullYear()),
+    upThroughSuffix: "CE",
     geographicLimits: [],
     topics: [],
   });
@@ -107,6 +183,37 @@ export function NewGamePage() {
   const [error, setError] = useState<string | null>(null);
   const [availableEvents, setAvailableEvents] = useState<number | null>(null);
   const [isFetchingEvents, setIsFetchingEvents] = useState(false);
+
+  // Combine number and suffix into full date strings for API submission
+  // This useEffect automatically updates beginningFrom and upThrough whenever
+  // their number or suffix components change
+  useEffect(() => {
+    // Combine beginningFrom number and suffix
+    const newBeginningFrom = formData.beginningFromNumber && formData.beginningFromSuffix
+      ? `${formData.beginningFromNumber} ${formData.beginningFromSuffix}`.trim()
+      : formData.beginningFromNumber || formData.beginningFromSuffix || "";
+
+    // Combine upThrough number and suffix
+    const newUpThrough = formData.upThroughNumber && formData.upThroughSuffix
+      ? `${formData.upThroughNumber} ${formData.upThroughSuffix}`.trim()
+      : formData.upThroughNumber || formData.upThroughSuffix || "";
+
+    // Only update if the combined values have changed
+    if (newBeginningFrom !== formData.beginningFrom || newUpThrough !== formData.upThrough) {
+      setFormData((prev) => ({
+        ...prev,
+        beginningFrom: newBeginningFrom,
+        upThrough: newUpThrough,
+      }));
+    }
+  }, [
+    formData.beginningFromNumber,
+    formData.beginningFromSuffix,
+    formData.upThroughNumber,
+    formData.upThroughSuffix,
+    formData.beginningFrom,
+    formData.upThrough,
+  ]);
 
   const handleGameModeSelect = (mode: GameMode) => {
     setFormData({ ...formData, gameMode: mode });
@@ -149,12 +256,31 @@ export function NewGamePage() {
   const handlePresetSelect = (presetName: string) => {
     const preset = PRESETS.find((p) => p.name === presetName);
     if (preset) {
+      // Parse date strings into number and suffix parts
+      // Handles formats like "4000 BCE" (with space) or "1914" (without space)
+      const parseDate = (dateStr: string) => {
+        const match = dateStr.match(/^(\d+)\s+(.+)$/);
+        if (match) {
+          return { number: match[1], suffix: match[2] };
+        }
+        // If no space found, assume it's a year and default to CE
+        // This handles cases like "1914" or "2026"
+        return { number: dateStr, suffix: "CE" };
+      };
+
+      const beginningParsed = parseDate(preset.beginningFrom);
+      const upThroughParsed = parseDate(preset.upThrough);
+
       setFormData({
         ...formData,
-        maxEvents: preset.maxEvents,
+        // maxEvents: preset.maxEvents,
         strikeLimit: preset.strikeLimit,
         beginningFrom: preset.beginningFrom,
+        beginningFromNumber: beginningParsed.number,
+        beginningFromSuffix: beginningParsed.suffix,
         upThrough: preset.upThrough,
+        upThroughNumber: upThroughParsed.number,
+        upThroughSuffix: upThroughParsed.suffix,
         geographicLimits: preset.geographicLimits,
         topics: preset.topics,
       });
@@ -255,8 +381,9 @@ export function NewGamePage() {
           gameMode: formData.gameMode,
           deviceMode: formData.deviceMode,
           playerNames,
-          maxEvents: formData.maxEvents,
+          // maxEvents: formData.maxEvents,
           strikeLimit: formData.strikeLimit,
+          targetScore: formData.targetScore,
           beginningFrom: formData.beginningFrom,
           upThrough: formData.upThrough,
           geographicLimits: formData.geographicLimits,
@@ -290,8 +417,9 @@ export function NewGamePage() {
         formData.playerNames.filter(name => name.trim()).length >= 2)));
 
   return (
-    <div className="max-w-2xl mx-auto w-full space-y-6">
-      <Button
+    <TooltipProvider>
+      <div className="max-w-2xl mx-auto w-full space-y-6">
+        <Button
         variant="ghost"
         onClick={() => navigate("/")}
         className="gap-2"
@@ -485,9 +613,42 @@ export function NewGamePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Event Count Slider */}
+              {/* Target Score Slider - Play until score is reached */}
               <div className="space-y-2">
-                <Label>How many events? ({formData.maxEvents})</Label>
+                <Label className="flex items-center gap-1">
+                  Play until {formData.targetScore} events in a timeline
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      The winner will be the first player to reach a timeline with {formData.targetScore} events.
+                    </TooltipContent>
+                  </Tooltip>
+                </Label>
+                <Slider
+                  min={5}
+                  max={25}
+                  step={5}
+                  value={[formData.targetScore]}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, targetScore: value[0] })
+                  }
+                />
+              </div>
+
+              {/* Event Count Slider
+              <div className="space-y-2">
+                <Label>{formData.maxEvents} Events in the draw pile
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+										</TooltipTrigger>
+										<TooltipContent>
+											The game will end in defeat for all players if the draw pile is exhausted.
+										</TooltipContent>
+									</Tooltip>
+								</Label>
                 <Slider
                   min={10}
                   max={100}
@@ -497,11 +658,20 @@ export function NewGamePage() {
                     setFormData({ ...formData, maxEvents: value[0] })
                   }
                 />
-              </div>
+              </div> */}
 
               {/* Error Limit */}
               <div className="space-y-2">
-                <Label>Error Limit</Label>
+                <Label>Error Limit
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+										</TooltipTrigger>
+										<TooltipContent>
+											If a player gets this many strikes they are immediately defeated.
+										</TooltipContent>
+									</Tooltip>
+								</Label>
                 <Select
                   value={formData.strikeLimit.toString()}
                   onValueChange={(value) =>
@@ -522,29 +692,35 @@ export function NewGamePage() {
                 </Select>
               </div>
 
-              {/* Beginning From */}
+              {/* Beginning From - Composite input with number and suffix */}
               <div className="space-y-2">
                 <Label>Beginning from</Label>
-                <Input
-                  type="text"
-                  value={formData.beginningFrom}
-                  onChange={(e) =>
-                    setFormData({ ...formData, beginningFrom: e.target.value })
+                <CompositeDateInput
+                  numberValue={formData.beginningFromNumber || ""}
+                  suffixValue={formData.beginningFromSuffix || ""}
+                  onNumberChange={(value) =>
+                    setFormData({ ...formData, beginningFromNumber: value })
                   }
-                  placeholder="4000 BCE"
+                  onSuffixChange={(value) =>
+                    setFormData({ ...formData, beginningFromSuffix: value })
+                  }
+                  placeholder="4000"
                 />
               </div>
 
-              {/* Up Through */}
+              {/* Up Through - Composite input with number and suffix */}
               <div className="space-y-2">
                 <Label>Up through</Label>
-                <Input
-                  type="text"
-                  value={formData.upThrough}
-                  onChange={(e) =>
-                    setFormData({ ...formData, upThrough: e.target.value })
+                <CompositeDateInput
+                  numberValue={formData.upThroughNumber || ""}
+                  suffixValue={formData.upThroughSuffix || ""}
+                  onNumberChange={(value) =>
+                    setFormData({ ...formData, upThroughNumber: value })
                   }
-                  placeholder="2026 CE"
+                  onSuffixChange={(value) =>
+                    setFormData({ ...formData, upThroughSuffix: value })
+                  }
+                  placeholder="1254"
                 />
               </div>
             </div>
@@ -608,7 +784,7 @@ export function NewGamePage() {
           <div className="flex justify-end">
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || ! availableEvents}
               size="lg"
             >
               {isSubmitting ? (
@@ -624,5 +800,6 @@ export function NewGamePage() {
         )}
       </div>
     </div>
+    </TooltipProvider>
   );
 }
