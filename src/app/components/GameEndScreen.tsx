@@ -12,6 +12,7 @@ interface GameEndScreenProps {
   isVictory: boolean;
   gameMode: "collaborative" | "competitive";
   players: Player[];
+	gameEndDescription: string;
   timelineLenth: number;
   incorrectCount: number;
   remainingEvents: number;
@@ -22,6 +23,7 @@ export function GameEndScreen({
   isVictory,
   gameMode,
   players,
+	gameEndDescription,
   timelineLenth,
   incorrectCount,
   remainingEvents,
@@ -47,7 +49,9 @@ export function GameEndScreen({
             {isVictory ? "Victory" : "Defeated"}
           </h1>
           <p className="text-muted-foreground text-base">
-            {isVictory
+            {gameEndDescription
+						? `${gameEndDescription}`
+						:isVictory
               ? gameMode === "collaborative"
                 ? "The team placed every event in its proper place."
                 : `${winner?.name} takes the win.`
