@@ -8,7 +8,6 @@ import { StrikePlaceholderCard } from "../components/StrikePlaceholderCard";
 import { GameEndScreen } from "../components/GameEndScreen";
 import { EVENT_CACHE_KEY_PREFIX, USER_SESSION_KEY, CURRENT_GAME_KEY } from "../constants";
 import { Player, GameState, UserSession, Event, Strike } from "../types";
-import { formatEventDate } from "../utils";
 import { createNetworkErrorModal, ApiError, NetworkError, ErrorModalConfig, DevelopmentError, InvalidMoveError } from "../errors";
 import { ErrorModalDialog } from "../errors/ErrorModalDialog";
 import { EventCard } from "../components/EventCard";
@@ -291,7 +290,7 @@ export function PlayPage() {
 	}, [gameState?.state])
 
 	const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean } => {
-		console.log('inside _checkGameStatus')
+		// console.log('inside _checkGameStatus')
 		if (!gameState) {
 			return { isGameOver: false, isVictory: false, gameEndDescription: null };
 		}
@@ -305,7 +304,7 @@ export function PlayPage() {
 			return { isGameOver: true, isVictory, gameEndDescription: 'I dunno what happen.' };
 		}
 		
-		console.log('check against strike limit')
+		// console.log('check against strike limit')
 		// Check for DEFEAT: Too many strikes in the incorrect stack
 		if (getStrikeCount() >= gameState.settings.strikeLimit) {
 			return { isGameOver: true, isVictory: false, gameEndDescription: `PLAYER NAME made too many mistakes` };
@@ -314,7 +313,7 @@ export function PlayPage() {
 		// does any player have the targetScore?
 		// Check if timeline has reached target score (for collaborative mode)
 		// Note: In competitive mode, this would check individual player scores
-		console.log('check agains targetScore')
+		// console.log('check agains targetScore')
 		if (gameState.gameMode === 'collaborative') {
 			if (gameState.state.timelineCollaborative.length >= gameState.settings.targetScore) {
 				return { isGameOver: true, isVictory: true, gameEndDescription: `PLAYER NAME successfully arranged ${gameState.settings.targetScore} events in their timeline!` };
@@ -323,7 +322,7 @@ export function PlayPage() {
 			console.error('not yet developed for competetive play.')
 		}
 
-		console.log('check agains empty draw stack')
+		// console.log('check agains empty draw stack')
 		// Check for DEFEAT: no cards left in draw stack
 		if (drawStackEmpty) {
 			return { isGameOver: true, isVictory: false, gameEndDescription: 'No player could win before the draw pile was exhausted.' };
@@ -734,7 +733,7 @@ export function PlayPage() {
 
 	let strikeCountdown = gameState.settings.strikeLimit - getStrikeCount();
 
-	console.log('drawnCard before render', drawnCard)
+	// console.log('drawnCard before render', drawnCard)
 	let badRangeTexts:string[] = []
 	if(drawnCard?.strikes?.length) {
 		drawnCard.strikes.forEach(strike => {

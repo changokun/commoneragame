@@ -91,6 +91,7 @@ export interface Event {
   title: string;
   name?: string;          // Alternative to title
   date: string;           // ISO date string or year
+  dateBCE: number;           // negative integer for a year.
   description?: string;   // Detailed description of the event
   strikes?: object[];     // Array of {player IDs & the date ranges} who got this wrong
   // Future: could add category, difficulty, imageUrl, etc.

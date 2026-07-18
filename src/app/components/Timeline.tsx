@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { EVENT_CACHE_KEY_PREFIX } from "../constants";
-import { formatEventDate } from "../utils";
+import { formatEventDateForComparison } from "../utils";
 import { EventCard } from "./EventCard";
+import { Event } from "../types";
 
 // interface TimelineCardProps {
 //   event: any;
@@ -11,22 +12,9 @@ import { EventCard } from "./EventCard";
 // 	isNew?: boolean;
 // }
 
-// function TimelineCard({ event, index, isNew }: TimelineCardProps) {
-//   return (
-//     <Card key={index} className={`p-4 timeline-card${isNew ? " card-glow" : ""}`}>
-//       <div className="space-y-2">
-//         <h3 className="font-semibold"><span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 md:me-4">{formatEventDate(event.date)}</span> {event.title || `Event ${index + 1}`}</h3>
-//         {event.description && (
-//           <p className="text-sm">{event.description}</p>
-//         )}
-//       </div>
-//     </Card>
-//   );
-// }
-
 function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }: PlacementOptionProps) {
-	const b = formatEventDate(before?.date)
-	const a = formatEventDate(after?.date)
+	const b = before ? formatEventDateForComparison(before) : null
+	const a = after ? formatEventDateForComparison(after) : null
 	
 	// Build placement description - one line, maybe two
 	let label = "Place card";
@@ -80,8 +68,18 @@ interface PlacementOptionProps {
   onPlace: (placement: { a: string; b: string }) => void; 
 }
 
-function sortEventsByDate(events: any[]): any[] {
-  return [...events].sort((a, b) => {
+function sortEventsByDate(events: Event[]): Event[] {
+  return events.sort((a, b) => {
+		if(a.dateBCE && b.dateBCE) {
+			// todo still ignoring months/days
+			if(a.dateBCE < b.dateBCE) return -1;
+			if(a.dateBCE > b.dateBCE) return 1;
+			return 0;
+		} else if(a.dateBCE && ! b.dateBCE) {
+			return -1
+		} else if(!a.dateBCE && b.dateBCE) {
+			return 1
+		}
 		if(a.date < b.date) return -1;
 		if(a.date > b.date) return 1;
 		return 0;
@@ -204,27 +202,48 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
     );
   }
 
-	let correctPosition = -9
+	let correctPosition = -9 // known wrong. valid values are 0 and up
 	if(drawnCard) {
-		// console.log('drawnCard.date', drawnCard.date)
 		// console.log('events[0].date', events[0].date)
 		// console.log('events[events.length - 1].date', events[events.length - 1].date, events.length - 1)
 		// which is the correct position?
-		if(drawnCard.date < events[0].date) {
-			correctPosition = 0
-		} else if(drawnCard.date > events[events.length - 1].date) {
-			correctPosition = events.length
-		} else {
-			events.forEach((event, index) => {
-				if(correctPosition === -9) {
-					// console.log('index', index, event.date)
-					if(event.date > drawnCard.date) {
-						correctPosition = index
+		if(drawnCard.dateBCE) {
+			// BCE
+			console.log('drawnCard.dateBCE must be BCE', drawnCard.date)
+			// todo - dates BCE can still have months/days stored in an arbitrary year in the event.date.
+			if(! events[0].dateBCE || drawnCard.dateBCE < events[0].dateBCE) {
+				correctPosition = 0
+			} else if(events[events.length - 1].dateBCE && drawnCard.dateBCE > events[events.length - 1].dateBCE) {
+				correctPosition = events.length
+			} else {
+				events.forEach((event, index) => {
+					if(correctPosition === -9) { // still not set
+						console.log('index', index, event.dateBCE)
+						if(event.dateBCE && event.dateBCE > drawnCard.dateBCE) {
+							correctPosition = index
+						}
 					}
-				}
-			})
+				})
+			}
+		} else {
+			// CE
+			console.log('drawnCard.date must be CE', drawnCard.date)
+			if(events[0].date && drawnCard.date < events[0].date) {
+				correctPosition = 0
+			} else if(events[events.length - 1].date && drawnCard.date > events[events.length - 1].date) {
+				correctPosition = events.length
+			} else {
+				events.forEach((event, index) => {
+					if(correctPosition === -9) { // still not set
+						console.log('index', index, event.date)
+						if(event.date && event.date > drawnCard.date) {
+							correctPosition = index
+						}
+					}
+				})
+			}
 		}
-		// console.log('correctPosition', correctPosition)
+		console.log('correctPosition', correctPosition)
 	}
 
 	const onPlace = drawnCard? handleIncorrectMove : doNotDoAnything;

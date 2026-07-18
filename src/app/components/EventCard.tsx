@@ -2,7 +2,7 @@ import { Card } from "./ui/card";
 import { Skull, X, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Event } from "../types";
-import { formatEventDate } from "../utils";
+import { formatEventDateForDisplay } from "../utils";
 
 
 interface EventCardProps {
@@ -111,7 +111,7 @@ export function EventCard({
       case 'timeline':
         return (
           <span className="year my-2 rounded-md bg-zinc-100 px-3 pb-1.5 pt-2 text-l uppercase text-neutral-500 dark:bg-neutral-700 dark:text-white/50 me-4">
-            {formatEventDate(event.date)}
+            {formatEventDateForDisplay(event)}
           </span>
         );
 
