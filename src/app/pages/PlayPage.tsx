@@ -283,17 +283,17 @@ export function PlayPage() {
 	const checkGameStatus = useCallback((): { isGameOver: boolean; isVictory: boolean } => {
 		// console.log('inside checkGameStatus')
 		if (!gameState) {
-			return { isGameOver: false, isVictory: false };
+			return { isGameOver: false, isVictory: false, gameEndDescription: null };
 		}
-		const { isGameOver, isVictory } = _checkGameStatus();
+		return _checkGameStatus();
 		// report changes to api. todo
-		return { isGameOver: isGameOver, isVictory: isVictory };
+		// return { isGameOver: isGameOver, isVictory: isVictory };
 	}, [gameState?.state])
 
 	const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean } => {
-		// console.log('inside _checkGameStatus')
+		console.log('inside _checkGameStatus')
 		if (!gameState) {
-			return { isGameOver: false, isVictory: false };
+			return { isGameOver: false, isVictory: false, gameEndDescription: null };
 		}
 		// First, check if the game state says it's already over
 		// This handles the case when we're loading an already-completed game from the API
@@ -301,40 +301,41 @@ export function PlayPage() {
 		if (gameState.state.state === 'over') {
 			console.error('not yet developed')
 			// If there's a victor and it matches user.id, it was a victory. Otherwise, it was a defeat
-			const isVictory = gameState.state.victor;
-			return { isGameOver: true, isVictory };
+			const isVictory = Boolean(gameState.state.victor);
+			return { isGameOver: true, isVictory, gameEndDescription: 'I dunno what happen.' };
 		}
-
+		
+		console.log('check against strike limit')
 		// Check for DEFEAT: Too many strikes in the incorrect stack
 		if (getStrikeCount() >= gameState.settings.strikeLimit) {
-			return { isGameOver: true, isVictory: false };
+			return { isGameOver: true, isVictory: false, gameEndDescription: `PLAYER NAME made too many mistakes` };
 		}
-
-		// Check for VICTORY: No more events to draw AND all events have been correctly placed
-		// Victory happens when:
-		// 1. The draw stack is empty (no more events to draw)
-		// 2. AND the incorrect stack is empty (all events were placed correctly)
-		// OR
-		// 3. The timeline has reached the target score (for collaborative mode)
-		if (drawStackEmpty && gameState.state.incorrectCardStack.length === 0) {
-			return { isGameOver: true, isVictory: true };
-		}
-
+		
+		// does any player have the targetScore?
 		// Check if timeline has reached target score (for collaborative mode)
 		// Note: In competitive mode, this would check individual player scores
+		console.log('check agains targetScore')
 		if (gameState.gameMode === 'collaborative') {
-			const targetScore = gameState.settings?.targetScore || 4;
-			if (gameState.state.timelineCollaborative.length >= targetScore) {
-				return { isGameOver: true, isVictory: true };
+			if (gameState.state.timelineCollaborative.length >= gameState.settings.targetScore) {
+				return { isGameOver: true, isVictory: true, gameEndDescription: `PLAYER NAME successfully arranged ${gameState.settings.targetScore} events in their timeline!` };
 			}
+		} else {
+			console.error('not yet developed for competetive play.')
 		}
 
+		console.log('check agains empty draw stack')
+		// Check for DEFEAT: no cards left in draw stack
+		if (drawStackEmpty) {
+			return { isGameOver: true, isVictory: false, gameEndDescription: 'No player could win before the draw pile was exhausted.' };
+		}
+		
+
 		// Game is still in progress
-		return { isGameOver: false, isVictory: false };
+		return { isGameOver: false, isVictory: false, gameEndDescription: null };
 	};
 
 	// Use the checkGameStatus function to get current game status
-	const { isGameOver, isVictory } = checkGameStatus();
+	const { isGameOver, isVictory, gameEndDescription } = checkGameStatus();
 	// const isGameOver = false;
 	// const isVictory = true;
 
@@ -911,6 +912,7 @@ export function PlayPage() {
 					isVictory={isVictory}
 					gameMode={gameState.gameMode}
 					players={gameState.players}
+					gameEndDescription={gameEndDescription}
 					timelineLenth={gameState.state.timelineCollaborative.length}
 					incorrectCount={gameState.state.incorrectCardStack.length}
 					remainingEvents={gameState.remainingEventCount ?? 0}
