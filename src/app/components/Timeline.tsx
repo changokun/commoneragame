@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { EVENT_CACHE_KEY_PREFIX } from "../constants";
-import { formatEventDateForComparison } from "../utils";
+import { formatEventDateForComparison, formatEventDateForDisplay } from "../utils";
 import { EventCard } from "./EventCard";
 import { Event } from "../types";
 
@@ -16,14 +16,17 @@ function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }
 	const b = before ? formatEventDateForComparison(before) : null
 	const a = after ? formatEventDateForComparison(after) : null
 	
+	const bDisplay = before ? formatEventDateForDisplay(before) : null
+	const aDisplay = after ? formatEventDateForDisplay(after) : null
+	
 	// Build placement description - one line, maybe two
 	let label = "Place card";
 	if (a && b) {
-		label = `Place between ${a} and ${b}`;
+		label = `Place between ${aDisplay} and ${bDisplay}`;
 	} else if (b) {
-		label = `Place before ${b}`;
+		label = `Place before ${bDisplay}`;
 	} else if (a) {
-		label = `Place after ${a}`;
+		label = `Place after ${aDisplay}`;
 	}
 
 	// Determine placement position for the handler
