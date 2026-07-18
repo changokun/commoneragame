@@ -279,20 +279,20 @@ export function PlayPage() {
 	 * 
 	 * Note: The strike limit should come from gameState.settings, but for now we'll use a reasonable default
 	 */
-	const checkGameStatus = useCallback((): { isGameOver: boolean; isVictory: boolean } => {
+	const checkGameStatus = useCallback((): { isGameOver: boolean; isVictory: boolean; gameEndDescription: string } => {
 		// console.log('inside checkGameStatus')
 		if (!gameState) {
-			return { isGameOver: false, isVictory: false, gameEndDescription: null };
+			return { isGameOver: false, isVictory: false, gameEndDescription: '' };
 		}
 		return _checkGameStatus();
 		// report changes to api. todo
 		// return { isGameOver: isGameOver, isVictory: isVictory };
 	}, [gameState?.state])
 
-	const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean } => {
+	const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean; gameEndDescription: string } => {
 		// console.log('inside _checkGameStatus')
 		if (!gameState) {
-			return { isGameOver: false, isVictory: false, gameEndDescription: null };
+			return { isGameOver: false, isVictory: false, gameEndDescription: '' };
 		}
 		// First, check if the game state says it's already over
 		// This handles the case when we're loading an already-completed game from the API
@@ -330,7 +330,7 @@ export function PlayPage() {
 		
 
 		// Game is still in progress
-		return { isGameOver: false, isVictory: false, gameEndDescription: null };
+		return { isGameOver: false, isVictory: false, gameEndDescription: '' };
 	};
 
 	// Use the checkGameStatus function to get current game status
