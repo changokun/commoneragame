@@ -29,8 +29,7 @@ interface FormData {
   upThrough: string;
   upThroughNumber: string;
   upThroughSuffix: string;
-  geographicLimits: string[];
-  topics: string[];
+  filterTags: string[];
 }
 
 interface Preset {
@@ -39,7 +38,7 @@ interface Preset {
   strikeLimit: number;
   beginningFrom: string;
   upThrough: string;
-  geographicLimits: string[];
+  filterTags: string[];
   topics: string[];
 }
 
@@ -50,7 +49,7 @@ const PRESETS: Preset[] = [
     strikeLimit: 3,
     beginningFrom: "100 BCE",
     upThrough: "400 CE",
-    geographicLimits: ["Europe"],
+    filterTags: [],
     topics: ["Rome", "Art", "Architecture"],
   },
   {
@@ -59,7 +58,7 @@ const PRESETS: Preset[] = [
     strikeLimit: 5,
     beginningFrom: "1914",
     upThrough: "1945",
-    geographicLimits: ["World"],
+    filterTags: [],
     topics: ["WWI", "WWII"],
   },
   {
@@ -68,31 +67,9 @@ const PRESETS: Preset[] = [
     strikeLimit: 3,
     beginningFrom: "4000 BCE",
     upThrough: "500 CE",
-    geographicLimits: ["World"],
+    filterTags: [],
     topics: ["Rome"],
   },
-];
-
-const GEOGRAPHIC_OPTIONS = [
-  "Europe",
-  "Asia",
-  "Pacific",
-  "The Americas",
-  "U.S.A.",
-  "Africa",
-  "World",
-];
-
-const TOPIC_OPTIONS = [
-  "WWI",
-  "WWII",
-  "Art",
-  "Rome",
-  "Food",
-  "Architecture",
-  "Science",
-  "Math",
-  "Astronomy",
 ];
 
 // Time suffix options for composite date inputs
@@ -176,13 +153,13 @@ export function NewGamePage() {
     upThrough: `${new Date().getFullYear()} CE`,
     upThroughNumber: String(new Date().getFullYear()),
     upThroughSuffix: "CE",
-    geographicLimits: [],
-    topics: [],
+    filterTags: [],
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableEvents, setAvailableEvents] = useState<number | null>(null);
   const [isFetchingEvents, setIsFetchingEvents] = useState(false);
+	const [tags, setTags] = useState<object | null>(null);
 
   // Combine number and suffix into full date strings for API submission
   // This useEffect automatically updates beginningFrom and upThrough whenever
@@ -214,6 +191,34 @@ export function NewGamePage() {
     formData.beginningFrom,
     formData.upThrough,
   ]);
+
+	useEffect(() => {
+		const fetchTags = async () => {
+			try {
+				const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+				
+				// Fetch top-level tags
+				const response = await fetch(`${apiUrl}/tags`);
+				const data = await response.json();
+				console.log('API tags data:', data);
+				
+				// Fetch children for each tag in parallel
+				const tagsWithChildren = await Promise.all(
+					data.map(async (tag) => {
+						const childrenResponse = await fetch(`${apiUrl}/tags/${tag._id}/children`);
+						const children = await childrenResponse.json();
+						return { ...tag, children };
+					})
+				);
+				
+				console.log('Tags with children:', tagsWithChildren);
+				setTags(tagsWithChildren);
+			} catch (err) {
+				console.error('Failed to fetch tags:', err);
+			}
+		};
+		fetchTags();
+	}, []);
 
   const handleGameModeSelect = (mode: GameMode) => {
     setFormData({ ...formData, gameMode: mode });
@@ -281,25 +286,17 @@ export function NewGamePage() {
         upThrough: preset.upThrough,
         upThroughNumber: upThroughParsed.number,
         upThroughSuffix: upThroughParsed.suffix,
-        geographicLimits: preset.geographicLimits,
-        topics: preset.topics,
+        filterTags: preset.filterTags
       });
     }
   };
 
-  const toggleGeographicLimit = (geo: string) => {
-    const newLimits = formData.geographicLimits.includes(geo)
-      ? formData.geographicLimits.filter((g) => g !== geo)
-      : [...formData.geographicLimits, geo];
-    setFormData({ ...formData, geographicLimits: newLimits });
-  };
-
-  const toggleTopic = (topic: string) => {
-    const newTopics = formData.topics.includes(topic)
-      ? formData.topics.filter((t) => t !== topic)
-      : [...formData.topics, topic];
-    setFormData({ ...formData, topics: newTopics });
-  };
+	const toggleTag = (tagId: string) => {
+		const newFilterTags = formData.filterTags.includes(tagId)
+			? formData.filterTags.filter(id => id !== tagId)  // Remove if exists
+			: [...formData.filterTags, tagId];                // Add if not exists
+		setFormData({ ...formData, filterTags: newFilterTags });
+	};
 
   // Fetch available events when history settings change
   useEffect(() => {
@@ -316,8 +313,7 @@ export function NewGamePage() {
           body: JSON.stringify({
             from: formData.beginningFrom,
             to: formData.upThrough,
-            geographicLimits: formData.geographicLimits,
-            topics: formData.topics,
+            filterTags: formData.filterTags
           }),
         });
         const data = await response.json();
@@ -338,8 +334,7 @@ export function NewGamePage() {
   }, [
     formData.beginningFrom,
     formData.upThrough,
-    formData.geographicLimits,
-    formData.topics,
+    formData.filterTags
   ]);
 
   const handleSubmit = async () => {
@@ -386,8 +381,7 @@ export function NewGamePage() {
           targetScore: formData.targetScore,
           beginningFrom: formData.beginningFrom,
           upThrough: formData.upThrough,
-          geographicLimits: formData.geographicLimits,
-          topics: formData.topics,
+          filterTags: formData.filterTags
         }),
       });
 
@@ -725,39 +719,28 @@ export function NewGamePage() {
               </div>
             </div>
 
-            {/* Geographic Limits */}
-            <div className="space-y-2">
-              <Label>Geographic Limits</Label>
-              <div className="flex flex-wrap gap-2">
-                {GEOGRAPHIC_OPTIONS.map((geo) => (
-                  <Badge
-                    key={geo}
-                    variant={formData.geographicLimits.includes(geo) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleGeographicLimit(geo)}
-                  >
-                    {geo}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Topics */}
-            <div className="space-y-2">
-              <Label>Topics</Label>
-              <div className="flex flex-wrap gap-2">
-                {TOPIC_OPTIONS.map((topic) => (
-                  <Badge
-                    key={topic}
-                    variant={formData.topics.includes(topic) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleTopic(topic)}
-                  >
-                    {topic}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+						{/* Tag Filters - Dynamic rendering from API */}
+						{tags && tags.map((tag) => (
+							<div key={tag._id} className="space-y-2">
+								<Label>{tag.name}</Label>
+								<div className="flex flex-wrap gap-2">
+									{tag.children?.map((childTag) => (
+										<Badge
+											key={childTag._id}
+											variant={
+												formData.filterTags.includes(childTag._id) 
+													? "default" 
+													: "outline"
+											}
+											className="cursor-pointer"
+											onClick={() => toggleTag(childTag._id)}
+										>
+											{childTag.name}
+										</Badge>
+									))}
+								</div>
+							</div>
+						))}
 
             {/* Available Events Info */}
             <div className="bg-muted p-3 rounded-lg">
