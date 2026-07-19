@@ -3,6 +3,7 @@ import { RootLayout } from "./components/RootLayout";
 import { HomePage } from "./pages/HomePage";
 import { NewGamePage } from "./pages/NewGamePage";
 import { JoinGamePage } from "./pages/JoinGamePage";
+import { EditTagPage } from "./pages/admin/tags/EditTagPage";
 import { PlayPage } from "./pages/PlayPage";
 
 export const router = createBrowserRouter([
@@ -17,4 +18,8 @@ export const router = createBrowserRouter([
       { path: "*", Component: () => <div>404 - Page not found</div> },
     ],
   },
+	{
+		path: "/admin/tags/edit/:id",
+		element: <EditTagPage />,
+	}
 ]);
