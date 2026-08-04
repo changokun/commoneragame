@@ -92,8 +92,10 @@ export interface Event {
   name?: string;          // Alternative to title
   date: string;           // ISO date string or year
   dateBCE: number;           // negative integer for a year.
+	datePrecision: "year" | "decade" | "century" | "millennium"
   description?: string;   // Detailed description of the event
   strikes?: object[];     // Array of {player IDs & the date ranges} who got this wrong
+  tags?: string[];        // Array of tag IDs associated with this event
   // Future: could add category, difficulty, imageUrl, etc.
 }
 

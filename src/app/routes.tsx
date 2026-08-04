@@ -4,22 +4,29 @@ import { HomePage } from "./pages/HomePage";
 import { NewGamePage } from "./pages/NewGamePage";
 import { JoinGamePage } from "./pages/JoinGamePage";
 import { EditTagPage } from "./pages/admin/tags/EditTagPage";
+import { TagsPage } from "./pages/admin/tags/TagsPage";
+import { EventsPage } from "./pages/admin/events/EventsPage";
+import { EditEventPage } from "./pages/admin/events/EditEventPage";
 import { PlayPage } from "./pages/PlayPage";
 
+
 export const router = createBrowserRouter([
-  {
-    path: "/",
-    Component: RootLayout,
-    children: [
-      { index: true, Component: HomePage },
-      { path: "new-game", Component: NewGamePage },
-      { path: "join-game", Component: JoinGamePage },
-      { path: "play/:gameId?", Component: PlayPage },
-      { path: "*", Component: () => <div>404 - Page not found</div> },
-    ],
-  },
+	{
+		path: "/",
+		Component: RootLayout,
+		children: [
+			{ index: true, Component: HomePage },
+			{ path: "new-game", Component: NewGamePage },
+			{ path: "join-game", Component: JoinGamePage },
+			{ path: "play/:gameId?", Component: PlayPage },
+			{ path: "*", Component: () => <div>404 - Page not found</div> },
+		],
+	},
 	{
 		path: "/admin/tags/edit/:id",
 		element: <EditTagPage />,
-	}
+	},
+	{ path: "/admin/tags", element: <TagsPage /> },
+	{ path: "/admin/events", element: <EventsPage /> },
+	{ path: "/admin/events/edit/:id", element: <EditEventPage /> }
 ]);
