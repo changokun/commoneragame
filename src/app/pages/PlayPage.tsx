@@ -805,7 +805,7 @@ export function PlayPage() {
 								</span>
 							))
 						)}
-						<Button onClick={handleToggleAll}>TOGGLE</Button>
+						<Button onClick={handleToggleAll}>{allExpanded ? 'Collapse All' : 'Expand All'}</Button>
 					</div>
 				</div>
 			</header>
