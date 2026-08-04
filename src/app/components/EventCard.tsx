@@ -1,6 +1,8 @@
 import { Card } from "./ui/card";
-import { Skull, X, ChevronDown } from "lucide-react";
-import { useState, useEffect } from "react";
+// Import feedback icons from lucide-react
+// Heart = favorite, Flag = flag/report, MessageSquare = comment
+import { Skull, X, ChevronDown, Heart, Flag, MessageSquare, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Event } from "../types";
 import { formatEventDateForDisplay } from "../utils";
 
@@ -66,6 +68,54 @@ export function EventCard({
     }
   }, [allExpanded]);
 
+
+  // ==========================================================================
+  // FEEDBACK STATE - For favorite, flag, and comment actions
+  // ==========================================================================
+  // Type for feedback action states:
+  // - 'idle': default state, icon is monotone/empty
+  // - 'saving': API call in progress, show spinner
+  // - 'success': API call succeeded, icon is filled with color
+  // - 'error': API call failed
+  type FeedbackState = 'idle' | 'saving' | 'success' | 'error';
+
+  // Track the state of each feedback action
+  // This allows us to show visual feedback (spinner, filled icon) for each action
+  const [feedbackStates, setFeedbackStates] = useState<{
+    favorite: FeedbackState;
+    flag: FeedbackState;
+    comment: FeedbackState;
+  }>({
+    favorite: 'idle',
+    flag: 'idle',
+    comment: 'idle',
+  });
+
+  // Track whether the comment input field is visible
+  const [showCommentInput, setShowCommentInput] = useState(false);
+
+  // Track the text the user types for a comment
+  const [commentText, setCommentText] = useState('');
+
+  // Refs to store timeout IDs so we can clear them if the component unmounts
+  // This prevents memory leaks and state updates on unmounted components
+  const timeoutRefs = useRef<{
+    favorite?: NodeJS.Timeout;
+    flag?: NodeJS.Timeout;
+    comment?: NodeJS.Timeout;
+  }>({});
+
+  // Clean up timeouts when component unmounts
+  // useEffect with empty dependency array runs only on mount and unmount
+  useEffect(() => {
+    return () => {
+      // Clear all pending timeouts to prevent memory leaks
+      Object.values(timeoutRefs.current).forEach(timeout => {
+        if (timeout) clearTimeout(timeout);
+      });
+    };
+  }, []);
+
   // ==========================================================================
   // CHEVRON TOGGLE - Only for timeline and incorrect cards
   // ==========================================================================
@@ -88,6 +138,152 @@ export function EventCard({
 		}
 	};
 	
+
+  // ==========================================================================
+  // FEEDBACK API FUNCTION
+  // ==========================================================================
+  // Generic function to submit feedback to the server
+  // Used by all three feedback actions (favorite, flag, comment)
+  // useCallback memoizes this so it doesn't recreate on every render
+  const submitFeedback = useCallback(async (type: 'favorite' | 'flag' | 'comment', text: string = '') => {
+    // Get API base URL from environment or use default
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+    
+    try {
+      const response = await fetch(`${apiUrl}/events/${event._id}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type, text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text() || 'Failed to submit feedback');
+      }
+
+      return true; // Success
+    } catch (err) {
+      console.error('Feedback submission error:', err);
+      return false; // Failure
+    }
+  }, [event._id]);
+
+
+  // ==========================================================================
+  // FEEDBACK HANDLERS
+  // ==========================================================================
+
+  /**
+   * Handle favorite button click
+   * Toggles favorite state and submits to API
+   */
+  const handleFavoriteClick = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click from firing
+    
+    // Set state to 'saving' to show spinner
+    setFeedbackStates(prev => ({ ...prev, favorite: 'saving' }));
+
+    // Submit feedback to API
+    const success = await submitFeedback('favorite', '');
+
+    // Update state based on result
+    setFeedbackStates(prev => ({
+      ...prev,
+      favorite: success ? 'success' : 'error',
+    }));
+
+    // Clear the state after 8 seconds (auto-revert as requested)
+    const timeout = setTimeout(() => {
+      setFeedbackStates(prev => ({ ...prev, favorite: 'idle' }));
+    }, 8000);
+
+    // Store timeout ref so we can clear it on unmount
+    timeoutRefs.current.favorite = timeout;
+  }, [submitFeedback]);
+
+
+  /**
+   * Handle flag button click
+   * Submits flag feedback to API
+   */
+  const handleFlagClick = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click from firing
+    
+    setFeedbackStates(prev => ({ ...prev, flag: 'saving' }));
+
+    const success = await submitFeedback('flag', '');
+
+    setFeedbackStates(prev => ({
+      ...prev,
+      flag: success ? 'success' : 'error',
+    }));
+
+    const timeout = setTimeout(() => {
+      setFeedbackStates(prev => ({ ...prev, flag: 'idle' }));
+    }, 8000);
+
+    timeoutRefs.current.flag = timeout;
+  }, [submitFeedback]);
+
+
+  /**
+   * Handle comment button click
+   * Shows the comment input field instead of immediately submitting
+   */
+  const handleCommentClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click from firing
+    setShowCommentInput(true);
+    setCommentText('');
+  }, []);
+
+
+  /**
+   * Handle comment submission
+   * Submits comment feedback to API and hides the input field
+   */
+  const handleCommentSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!commentText.trim()) {
+      // Don't submit empty comments
+      setShowCommentInput(false);
+      return;
+    }
+
+    setFeedbackStates(prev => ({ ...prev, comment: 'saving' }));
+
+    const success = await submitFeedback('comment', commentText);
+
+    setFeedbackStates(prev => ({
+      ...prev,
+      comment: success ? 'success' : 'error',
+    }));
+
+    // Hide input and clear text
+    setShowCommentInput(false);
+    setCommentText('');
+
+    // Clear the state after 8 seconds
+    const timeout = setTimeout(() => {
+      setFeedbackStates(prev => ({ ...prev, comment: 'idle' }));
+    }, 8000);
+
+    timeoutRefs.current.comment = timeout;
+  }, [submitFeedback, commentText]);
+
+
+  /**
+   * Handle comment input cancel
+   * Hides the input field without submitting
+   */
+  const handleCommentCancel = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowCommentInput(false);
+    setCommentText('');
+  }, []);
+
 
   // ==========================================================================
   // VARIANT-SPECIFIC RENDERING
@@ -204,6 +400,113 @@ export function EventCard({
         {/* Description only shown when expanded AND we have one */}
         {event.description && (displayExpanded || variant === 'drawn') && (
           <p className="text-sm mt-2">{event.description}</p>
+        )}
+
+        {/* ================================================================ */}
+        {/* FEEDBACK ICONS - Only for timeline and incorrect variants */}
+        {/* Shows at bottom right when card is expanded or always for these variants */}
+        {/* ================================================================ */}
+        {(variant === 'timeline' || variant === 'incorrect') && (
+          <div className="feedback-actions absolute bottom-0 right-0 p-2 flex gap-2">
+            {/* Favorite/Heart button */}
+            <button
+              onClick={handleFavoriteClick}
+              className={`feedback-btn cursor-pointer transition-all duration-300 ${
+                feedbackStates.favorite === 'saving' ? 'animate-spin' : ''
+              }`}
+              aria-label="Favorite this event"
+              disabled={feedbackStates.favorite === 'saving'}
+            >
+              {feedbackStates.favorite === 'saving' ? (
+                <Loader2 className="w-4 h-4 text-red-500" />
+              ) : (
+                <Heart
+                  className={`w-4 h-4 ${
+                    feedbackStates.favorite === 'success' 
+                      ? 'text-red-500 fill-red-500' 
+                      : 'text-muted-foreground opacity-60 hover:opacity-100'
+                  }`}
+                />
+              )}
+            </button>
+
+            {/* Flag button */}
+            <button
+              onClick={handleFlagClick}
+              className={`feedback-btn cursor-pointer transition-all duration-300 ${
+                feedbackStates.flag === 'saving' ? 'animate-spin' : ''
+              }`}
+              aria-label="Flag this event"
+              disabled={feedbackStates.flag === 'saving'}
+            >
+              {feedbackStates.flag === 'saving' ? (
+                <Loader2 className="w-4 h-4 text-amber-500" />
+              ) : (
+                <Flag
+                  className={`w-4 h-4 ${
+                    feedbackStates.flag === 'success' 
+                      ? 'text-amber-500 fill-amber-500' 
+                      : 'text-muted-foreground opacity-60 hover:opacity-100'
+                  }`}
+                />
+              )}
+            </button>
+
+            {/* Comment button */}
+            <button
+              onClick={showCommentInput ? undefined : handleCommentClick}
+              className="feedback-btn cursor-pointer transition-all duration-300"
+              aria-label="Comment on this event"
+            >
+              {feedbackStates.comment === 'saving' ? (
+                <Loader2 className="w-4 h-4 text-blue-500" />
+              ) : (
+                <MessageSquare
+                  className={`w-4 h-4 ${
+                    feedbackStates.comment === 'success' 
+                      ? 'text-blue-500 fill-blue-500' 
+                      : 'text-muted-foreground opacity-60 hover:opacity-100'
+                  }`}
+                />
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* ================================================================ */}
+        {/* COMMENT INPUT FIELD - Appears when comment button is clicked */}
+        {/* ================================================================ */}
+        {(variant === 'timeline' || variant === 'incorrect') && showCommentInput && (
+          <form
+            onSubmit={handleCommentSubmit}
+            className="comment-input absolute bottom-0 left-0 right-0 p-4 pt-8 bg-gradient-to-t from-background/95 to-transparent"
+          >
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Add a comment..."
+                className="flex-1 text-sm bg-background border border-muted-foreground/20 rounded px-3 py-2 focus:outline-none focus:border-primary"
+                autoFocus
+                onClick={e => e.stopPropagation()}
+              />
+              <button
+                type="submit"
+                disabled={!commentText.trim() || feedbackStates.comment === 'saving'}
+                className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {feedbackStates.comment === 'saving' ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Post'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCommentCancel}
+                className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         )}
       </div>
     </Card>
