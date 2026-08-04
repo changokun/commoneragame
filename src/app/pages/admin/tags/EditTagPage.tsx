@@ -6,7 +6,7 @@ import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { ArrowLeft, Check, Loader2, X } from "lucide-react";
 import { TagPicker } from 'rsuite';
-import 'rsuite/dist/rsuite.min.css';
+// import 'rsuite/dist/rsuite.min.css';
 
 
 
@@ -49,7 +49,10 @@ export function EditTagPage() {
 	// State for rsuite TagPicker search
 	const [tagOptions, setTagOptions] = useState<Array<{ label: string; value: string }>>([]);
 
-	
+	useEffect(() => {
+    // Dynamically import rsuite CSS when component mounts
+    import('rsuite/dist/rsuite.min.css');
+  }, []);
 	
 	useEffect(() => {
 		const fetchTag = async () => {
@@ -196,7 +199,7 @@ export function EditTagPage() {
 		if (status === 'idle') return null;
 		
 		return (
-			<div className="fixed top-4 right-4">
+			<div className="absolute top-8 right-4">
 				{status === 'saving' && (
 					<Loader2 className="h-5 w-5 animate-spin text-primary" />
 				)}
@@ -223,10 +226,10 @@ export function EditTagPage() {
 	if (!tag) {
 		return <div className="p-8">Tag not found</div>;
 	}
-	console.log('tagOptions before render', JSON.stringify(tagOptions))
-	console.log('tag before render', JSON.stringify(tag))
+	// console.log('tagOptions before render', JSON.stringify(tagOptions))
+	// console.log('tag before render', JSON.stringify(tag))
 	return (
-		<div className="max-w-2xl mx-auto p-8 space-y-6">
+		<div className="max-w-2xl mx-auto p-2 space-y-6 relative">
 			{/* Process indicators - show if any field is not idle */}
 			{Object.values(saveStatus).some(s => s !== 'idle') && (
 				<ProcessIndicator 
@@ -250,7 +253,9 @@ export function EditTagPage() {
 					<Label>Parent (optional)</Label>
 					<TagPicker
 						data={tagOptions}
-						value={tag.parent && tag.parent._id ? [tag.parent._id] : tag.parent? [tag.parent] : []}
+						// value must be an array of strings for TagPicker
+						// Wrap parent._id in array, or use empty array if no parent
+						value={tag.parent?._id ? [tag.parent._id] : []}
 						onSearch={loadTagOptions}
 						onChange={handleParentChange}
 						placeholder="Start typing to add a parent tag…"
