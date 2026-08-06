@@ -13,6 +13,7 @@ import { ErrorModalDialog } from "../errors/ErrorModalDialog";
 import { EventCard } from "../components/EventCard";
 import { DrawPanelHorizontal } from "../components/DrawPanelHorizontal";
 import { DrawPanelVertical } from "../components/DrawPanelVertical";
+import { getToken, getPlayerId, ensureAuth } from "../services/auth";
 
 
 export function PlayPage() {
@@ -76,8 +77,6 @@ export function PlayPage() {
 		return (<h1>yay</h1>)
 	}
 
-	let anonymous_user_id = '42' // i think this can move inside fetchGameState()
-
 
 
 	// Fetch game state before session jazz, because i'm going to get the anonymous user_id first.
@@ -127,69 +126,33 @@ export function PlayPage() {
 				}
 
 				// now try to load the user
-				// if any of the players have the anonymous id (really only ever the solo player) then record its id for later comparisons (the id changes if the database is wiped.)
-				data.players.forEach((player: { username: string; _id: string; }) => {
-					if (player.username === 'Anonymous') {
-						anonymous_user_id = player._id
-					}
-				});
+				// Use JWT-based authentication instead of UserSession localStorage
+				// Check if we have JWT credentials
+				const playerId = getPlayerId();
+				const token = getToken();
 
-				// Check if we have a session stored in localStorage
-				const storedSession = localStorage.getItem(USER_SESSION_KEY);
-				if (storedSession) {
-					console.log('found this session in local storage', storedSession)
-					try {
-						const parsed = JSON.parse(storedSession) as UserSession;
-						// Validate that it has the required fields
-						// console.log(parsed)
-						if (parsed && parsed._id && parsed.username !== undefined && parsed.isAnonymous !== undefined) {
-							setUserSession(parsed);
-						}
-					} catch (e) {
-						console.error('Failed to parse stored user session:', e);
-					}
-
+				if (playerId && token) {
+					// Already have JWT auth - map to UserSession for compatibility
+					const session: UserSession = {
+						_id: playerId,
+						username: 'Anonymous',
+						isAnonymous: true
+					};
+					setUserSession(session);
 				} else {
-
-					// No stored session, try to fetch from API
+					// No JWT credentials - try to get anonymous token
 					try {
-						console.log('LOADING A SESSION FROM THE API');
-						const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-						const response = await fetch(`${apiUrl}/user`);
-
-						if (response.ok) {
-							const data = await response.json();
-							// API returns user data, create session from it
-							console.log('NOT TESTED api sent this from /user:', data)
-							console.log('api sent this from /user:', data)
-							console.log('api sent this from /user:', data)
-							console.log('api sent this from /user:', data)
-							const session: UserSession = {
-								_id: data._id || data.id,
-								username: data.name || data.username || 'WHAT!?',
-								isAnonymous: data.isAnonymous || false
-							};
-							// Store in localStorage for future use
-							localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
-							setUserSession(session);
-						} else if (response.status === 404) {
-							// User endpoint returns 404 for anonymous users
-							// This means we should create an anonymous session
-							console.log('No user session on server, creating anonymous session');
-						}
-					} catch (error) {
-						console.error('Failed to fetch user session from API:', error);
+						const newPlayerId = await ensureAuth();
+						const session: UserSession = {
+							_id: newPlayerId,
+							username: 'Anonymous',
+							isAnonymous: true
+						};
+						setUserSession(session);
+					} catch (err) {
+						console.error('Failed to get auth:', err);
 					}
 				}
-
-				// If we get here, use the anonymous user
-				const anonymous_user: UserSession = {
-					_id: anonymous_user_id,
-					username: 'Anonymous',
-					isAnonymous: true
-				}
-				localStorage.setItem(USER_SESSION_KEY, JSON.stringify(anonymous_user));
-				setUserSession(anonymous_user)
 
 
 

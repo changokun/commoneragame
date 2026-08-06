@@ -5,10 +5,11 @@ import { Skull, X, ChevronDown, Heart, Flag, MessageSquare, Loader2 } from "luci
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Event } from "../types";
 import { formatEventDateForDisplay } from "../utils";
-
+import { getToken } from "../services/auth";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 interface EventCardProps {
-  variant: 'drawn' | 'timeline' | 'incorrect';
+	variant: 'drawn' | 'timeline' | 'incorrect';
   event: Event;
   onClick?: () => void;
   isNewlyPlaced?: boolean;
@@ -145,18 +146,22 @@ export function EventCard({
   // Generic function to submit feedback to the server
   // Used by all three feedback actions (favorite, flag, comment)
   // useCallback memoizes this so it doesn't recreate on every render
-  const submitFeedback = useCallback(async (type: 'favorite' | 'flag' | 'comment', text: string = '') => {
-    // Get API base URL from environment or use default
-    const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-    
+	const submitFeedback = useCallback(async (type: 'favorite' | 'flag' | 'comment', text: string = '', reason?: string) => {
+		const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+		
+		const body: { type: string; text?: string; reason?: string } = { type };
+		if (text) body.text = text;
+		if (reason) body.reason = reason;
+		
     try {
-      const response = await fetch(`${apiUrl}/events/${event._id}/feedback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ type, text }),
-      });
+			const response = await fetch(`${apiUrl}/events/${event._id}/feedback`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${getToken()}`,
+				},
+				body: JSON.stringify(body),
+			});
 
       if (!response.ok) {
         throw new Error(await response.text() || 'Failed to submit feedback');
@@ -207,24 +212,22 @@ export function EventCard({
    * Handle flag button click
    * Submits flag feedback to API
    */
-  const handleFlagClick = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click from firing
-    
-    setFeedbackStates(prev => ({ ...prev, flag: 'saving' }));
-
-    const success = await submitFeedback('flag', '');
-
-    setFeedbackStates(prev => ({
-      ...prev,
-      flag: success ? 'success' : 'error',
-    }));
-
-    const timeout = setTimeout(() => {
-      setFeedbackStates(prev => ({ ...prev, flag: 'idle' }));
-    }, 8000);
-
-    timeoutRefs.current.flag = timeout;
-  }, [submitFeedback]);
+	const handleFlagSelect = useCallback(async (reason: string) => {
+		setFeedbackStates(prev => ({ ...prev, flag: 'saving' }));
+		
+		const success = await submitFeedback('flag', '', reason.toLowerCase());
+		
+		setFeedbackStates(prev => ({
+			...prev,
+			flag: success ? 'success' : 'error',
+		}));
+		
+		const timeout = setTimeout(() => {
+			setFeedbackStates(prev => ({ ...prev, flag: 'idle' }));
+		}, 8000);
+		
+		timeoutRefs.current.flag = timeout;
+	}, [submitFeedback]);
 
 
   /**
@@ -406,7 +409,7 @@ export function EventCard({
         {/* FEEDBACK ICONS - Only for timeline and incorrect variants */}
         {/* Shows at bottom right when card is expanded or always for these variants */}
         {/* ================================================================ */}
-        {(variant === 'timeline' || variant === 'incorrect') && (
+        {(variant === 'timeline') && (
           <div className="feedback-actions absolute bottom-0 right-0 p-2 flex gap-2">
             {/* Favorite/Heart button */}
             <button
@@ -431,26 +434,50 @@ export function EventCard({
             </button>
 
             {/* Flag button */}
-            <button
-              onClick={handleFlagClick}
-              className={`feedback-btn cursor-pointer transition-all duration-300 ${
-                feedbackStates.flag === 'saving' ? 'animate-spin' : ''
-              }`}
-              aria-label="Flag this event"
-              disabled={feedbackStates.flag === 'saving'}
-            >
-              {feedbackStates.flag === 'saving' ? (
-                <Loader2 className="w-4 h-4 text-amber-500" />
-              ) : (
-                <Flag
-                  className={`w-4 h-4 ${
-                    feedbackStates.flag === 'success' 
-                      ? 'text-amber-500 fill-amber-500' 
-                      : 'text-muted-foreground opacity-60 hover:opacity-100'
-                  }`}
-                />
-              )}
-            </button>
+						<DropdownMenu onOpenChange={(open) => {
+							if (!open && feedbackStates.flag === 'saving') {
+								setFeedbackStates(prev => ({ ...prev, flag: 'idle' }));
+							}
+						}}>
+							<DropdownMenuTrigger asChild>
+								<button
+									className={`feedback-btn cursor-pointer transition-all duration-300 ${
+										feedbackStates.flag === 'saving' ? 'animate-spin' : ''
+									}`}
+									aria-label="Flag this event"
+									disabled={feedbackStates.flag === 'saving'}
+								>
+									{feedbackStates.flag === 'saving' ? (
+										<Loader2 className="w-4 h-4 text-amber-500" />
+									) : (
+										<Flag
+											className={`w-4 h-4 ${
+												feedbackStates.flag === 'success' 
+													? 'text-amber-500 fill-amber-500' 
+													: 'text-muted-foreground opacity-60 hover:opacity-100'
+											}`}
+										/>
+									)}
+								</button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem onSelect={() => handleFlagSelect('Offensive')}>
+									Offensive
+								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => handleFlagSelect('Inaccurate')}>
+									Inaccurate
+								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => handleFlagSelect('Confusing')}>
+									Confusing
+								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => handleFlagSelect('Duplicate')}>
+									Duplicate
+								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => handleFlagSelect('Other')}>
+									Other (please also leave a comment)
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 
             {/* Comment button */}
             <button
@@ -477,10 +504,11 @@ export function EventCard({
         {/* COMMENT INPUT FIELD - Appears when comment button is clicked */}
         {/* ================================================================ */}
         {(variant === 'timeline' || variant === 'incorrect') && showCommentInput && (
-          <form
-            onSubmit={handleCommentSubmit}
-            className="comment-input absolute bottom-0 left-0 right-0 p-4 pt-8 bg-gradient-to-t from-background/95 to-transparent"
-          >
+					<form
+						onSubmit={handleCommentSubmit}
+						className="comment-input block p-4 pt-4 mt-4 border-t border-border"
+					>
+						<p className="info mb-4 text-neutral-400">Your comment will not be public, only the admins will see it.</p>
             <div className="flex gap-2">
               <input
                 type="text"

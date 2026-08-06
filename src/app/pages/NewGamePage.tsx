@@ -10,6 +10,7 @@ import { Slider } from "../components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Badge } from "../components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../components/ui/tooltip";
+import { ensureAuth, getToken } from "../services/auth";
 
 type GameMode = "competitive" | "collaborative" | null;
 type DeviceMode = "single" | "multiple" | null;
@@ -361,6 +362,9 @@ export function NewGamePage() {
     setError(null);
 
     try {
+      // Ensure we have authentication credentials (get or create anonymous token)
+      const playerId = await ensureAuth();
+      
       const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 
       const playerNames = formData.playerType === "justMe"
@@ -371,8 +375,10 @@ export function NewGamePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${getToken()}`,
         },
         body: JSON.stringify({
+          playerId,
           gameMode: formData.gameMode,
           deviceMode: formData.deviceMode,
           playerNames,
