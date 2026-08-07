@@ -212,7 +212,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 		// which is the correct position?
 		if(drawnCard.dateBCE) {
 			// BCE
-			console.log('drawnCard.dateBCE must be BCE', drawnCard.date)
+			// console.log('drawnCard.dateBCE must be BCE', drawnCard.date)
 			// todo - dates BCE can still have months/days stored in an arbitrary year in the event.date.
 			if(! events[0].dateBCE || drawnCard.dateBCE < events[0].dateBCE) {
 				correctPosition = 0
@@ -221,7 +221,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 			} else {
 				events.forEach((event, index) => {
 					if(correctPosition === -9) { // still not set
-						console.log('index', index, event.dateBCE)
+						// console.log('index', index, event.dateBCE)
 						if(event.dateBCE && event.dateBCE > drawnCard.dateBCE) {
 							correctPosition = index
 						}
@@ -230,7 +230,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 			}
 		} else {
 			// CE
-			console.log('drawnCard.date must be CE', drawnCard.date)
+			// console.log('drawnCard.date must be CE', drawnCard.date)
 			if(events[0].date && drawnCard.date < events[0].date) {
 				correctPosition = 0
 			} else if(events[events.length - 1].date && drawnCard.date > events[events.length - 1].date) {
@@ -238,7 +238,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 			} else {
 				events.forEach((event, index) => {
 					if(correctPosition === -9) { // still not set
-						console.log('index', index, event.date)
+						// console.log('index', index, event.date)
 						if(event.date && event.date > drawnCard.date) {
 							correctPosition = index
 						}
@@ -246,7 +246,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 				})
 			}
 		}
-		console.log('correctPosition', correctPosition)
+		// console.log('correctPosition', correctPosition)
 	}
 
 	const onPlace = drawnCard? handleIncorrectMove : doNotDoAnything;
