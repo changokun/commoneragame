@@ -52,15 +52,17 @@ export function EventCard({
   isNewlyPlaced = false,
   badRangeTexts,
   strikeCount,
-  allExpanded,
+  allExpanded = null,
   onExpandChange,
   className,
 }: EventCardProps) {
-  // Local expanded state for this card
+
+	// Local expanded state for this card
   const [isExpanded, setIsExpanded] = useState<boolean | null>(true);
+	// console.log(`at topof ${variant} comp allExpanded`, allExpanded, 'isExpanded', isExpanded)
 
   // Determine display state: use global if provided, else local
-  const displayExpanded = allExpanded !== null ? allExpanded : isExpanded;
+  const displayExpanded = isExpanded == null && allExpanded !== null ? allExpanded : isExpanded;
 
   // Sync local state when global changes
   useEffect(() => {
@@ -117,19 +119,14 @@ export function EventCard({
     };
   }, []);
 
-  // ==========================================================================
-  // CHEVRON TOGGLE - Only for timeline and incorrect cards
-  // ==========================================================================
-  // Only show chevron for cards that can be collapsed
-  const showChevron = (variant === 'timeline' || variant === 'incorrect') && Boolean(event.description);
-
 	const handleToggleExpand = (e: React.MouseEvent) => {
 		e.stopPropagation();
-	
+	// console.log('handleToggleExpand()', 'allExpanded', allExpanded, 'isExpanded', isExpanded)
 		// When allExpanded is active, clicking a chevron should:
 		// 1. Set this card's local state to the opposite of the global state
 		// 2. Tell parent to clear the global override
 		if (allExpanded !== null) {
+			// console.log(`because allExpanded is ${allExpanded}, isExpanded will be ${!allExpanded}`)
 			setIsExpanded(!allExpanded);
 			onExpandChange?.(!allExpanded, event._id);
 		} else {
@@ -373,169 +370,162 @@ export function EventCard({
 
   return (
     <Card className={`${cardClasses}${className ? ' ' + className : ''}`} onClick={onClick}>
-      <div className="event-card-liner p-4 relative">
+      <div className={`event-card-liner p-4 ${displayExpanded? 'pb-8': ''} relative`}>
         {/* ================================================================ */}
         {/* CHEVRON BUTTON - Upper right, large hitbox */}
         {/* ================================================================ */}
-        {showChevron && (
-          <button
-            onClick={handleToggleExpand}
-            // Large hitbox: extends beyond card padding with negative margins
-            className="collapser absolute top-0 right-0 md:p-4 lg:p-6 -m-1 rounded-md cursor-pointer text-muted-foreground transition-transform duration-200"
-            aria-label={displayExpanded ? "Collapse description" : "Expand description"}
-            aria-expanded={displayExpanded}
-          >
-            <ChevronDown
-              className={`w-5 h-5 transition-transform duration-200 ${
-                displayExpanded ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
-        )}
+				<button
+					onClick={handleToggleExpand}
+					// Large hitbox: extends beyond card padding with negative margins
+					className="collapser absolute top-0 right-0 p-4 rounded-md cursor-pointer text-muted-foreground transition-transform duration-200"
+					aria-label={displayExpanded ? "Collapse description" : "Expand description"}
+					aria-expanded={displayExpanded}
+				>
+					<ChevronDown className={`w-5 h-5 transition-transform duration-200 ${displayExpanded ? 'rotate-180' : ''}`} />
+				</button>
 
         <h3 className="font-semibold">
           {renderIndicator()}
-          {event.title || event.name || "Event"}
+          {event.title}
         </h3>
 
-        {renderKnownBads()}
-
-        {/* Description only shown when expanded AND we have one */}
-        {event.description && (displayExpanded || variant === 'drawn') && (
-          <p className="text-sm mt-2">{event.description}</p>
+        {displayExpanded && (
+					<>
+						{renderKnownBads()}
+						<p className="text-sm mt-2">{event.description}</p>
+					</>
         )}
 
         {/* ================================================================ */}
-        {/* FEEDBACK ICONS - Only for timeline and incorrect variants */}
-        {/* Shows at bottom right when card is expanded or always for these variants */}
+        {/* FEEDBACK ICONS */}
         {/* ================================================================ */}
-        {(variant === 'timeline') && (
-          <div className="feedback-actions absolute bottom-0 right-0 p-2 flex gap-2">
-            {/* Favorite/Heart button */}
-            <button
-              onClick={handleFavoriteClick}
-              className={`feedback-btn cursor-pointer transition-all duration-300 ${
-                feedbackStates.favorite === 'saving' ? 'animate-spin' : ''
-              }`}
-              aria-label="Favorite this event"
-              disabled={feedbackStates.favorite === 'saving'}
-            >
-              {feedbackStates.favorite === 'saving' ? (
-                <Loader2 className="w-4 h-4 text-red-500" />
-              ) : (
-                <Heart
-                  className={`w-4 h-4 ${
-                    feedbackStates.favorite === 'success' 
-                      ? 'text-red-500 fill-red-500' 
-                      : 'text-muted-foreground opacity-60 hover:opacity-100'
-                  }`}
-                />
-              )}
-            </button>
-
-            {/* Flag button */}
-						<DropdownMenu onOpenChange={(open) => {
-							if (!open && feedbackStates.flag === 'saving') {
-								setFeedbackStates(prev => ({ ...prev, flag: 'idle' }));
-							}
-						}}>
-							<DropdownMenuTrigger asChild>
-								<button
-									className={`feedback-btn cursor-pointer transition-all duration-300 ${
-										feedbackStates.flag === 'saving' ? 'animate-spin' : ''
-									}`}
-									aria-label="Flag this event"
-									disabled={feedbackStates.flag === 'saving'}
+        {(variant !== 'incorrect' && displayExpanded) && (
+					< >
+						<div className="feedback-actions absolute bottom-0 right-0 p-2 flex gap-2">
+							{/* Favorite/Heart button */}
+							<button
+								onClick={handleFavoriteClick}
+								className={`feedback-btn cursor-pointer transition-all duration-300 ${
+									feedbackStates.favorite === 'saving' ? 'animate-spin' : ''
+								}`}
+								aria-label="Favorite this event"
+								disabled={feedbackStates.favorite === 'saving'}
 								>
-									{feedbackStates.flag === 'saving' ? (
-										<Loader2 className="w-4 h-4 text-amber-500" />
-									) : (
-										<Flag
+								{feedbackStates.favorite === 'saving' ? (
+									<Loader2 className="w-4 h-4 text-red-500" />
+								) : (
+									<Heart
+									className={`w-4 h-4 ${
+										feedbackStates.favorite === 'success' 
+										? 'text-red-500 fill-red-500' 
+										: 'text-muted-foreground opacity-60 hover:opacity-100'
+									}`}
+									/>
+								)}
+							</button>
+
+							{/* Flag button */}
+							<DropdownMenu onOpenChange={(open) => {
+								if (!open && feedbackStates.flag === 'saving') {
+									setFeedbackStates(prev => ({ ...prev, flag: 'idle' }));
+								}
+							}}>
+								<DropdownMenuTrigger asChild>
+									<button
+										className={`feedback-btn cursor-pointer transition-all duration-300 ${
+											feedbackStates.flag === 'saving' ? 'animate-spin' : ''
+										}`}
+										aria-label="Flag this event"
+										disabled={feedbackStates.flag === 'saving'}
+										>
+										{feedbackStates.flag === 'saving' ? (
+											<Loader2 className="w-4 h-4 text-amber-500" />
+										) : (
+											<Flag
 											className={`w-4 h-4 ${
 												feedbackStates.flag === 'success' 
-													? 'text-amber-500 fill-amber-500' 
-													: 'text-muted-foreground opacity-60 hover:opacity-100'
+												? 'text-amber-500 fill-amber-500' 
+												: 'text-muted-foreground opacity-60 hover:opacity-100'
 											}`}
-										/>
-									)}
+											/>
+										)}
+									</button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuItem onSelect={() => handleFlagSelect('Offensive')}>
+										Offensive
+									</DropdownMenuItem>
+									<DropdownMenuItem onSelect={() => handleFlagSelect('Inaccurate')}>
+										Inaccurate
+									</DropdownMenuItem>
+									<DropdownMenuItem onSelect={() => handleFlagSelect('Confusing')}>
+										Confusing
+									</DropdownMenuItem>
+									<DropdownMenuItem onSelect={() => handleFlagSelect('Difficult')}>
+										Difficult
+									</DropdownMenuItem>
+									<DropdownMenuItem onSelect={() => handleFlagSelect('Duplicate')}>
+										Duplicate
+									</DropdownMenuItem>
+									<DropdownMenuItem onSelect={() => handleFlagSelect('Other')}>
+										Other (please also leave a comment)
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+
+							{/* Comment button */}
+							<button
+								onClick={showCommentInput ? undefined : handleCommentClick}
+								className="feedback-btn cursor-pointer transition-all duration-300"
+								aria-label="Comment on this event"
+								>
+								{feedbackStates.comment === 'saving' ? (
+									<Loader2 className="w-4 h-4 text-blue-500" />
+								) : (
+									<MessageSquare
+									className={`w-4 h-4 ${
+										feedbackStates.comment === 'success' 
+										? 'text-blue-500 fill-blue-500' 
+										: 'text-muted-foreground opacity-60 hover:opacity-100'
+									}`}
+									/>
+								)}
+							</button>
+						</div>
+						{/* ================================================================ */}
+						{/* COMMENT INPUT FIELD - Appears when comment button is clicked */}
+						{/* ================================================================ */}
+						{showCommentInput && (
+							<form onSubmit={handleCommentSubmit} className="comment-input block pt-4 mt-4 border-t border-border">
+								<p className="info mb-4 text-neutral-400">Your comment will not be public, only the admins will see it.</p>
+								<input
+									type="text"
+									value={commentText}
+									onChange={(e) => setCommentText(e.target.value)}
+									placeholder="Add a comment..."
+									className="flex-1 text-sm bg-background border border-muted-foreground/20 rounded px-3 py-2 focus:outline-none focus:border-primary w-full mb-2"
+									autoFocus
+									onClick={e => e.stopPropagation()}
+									/>
+								<button
+									type="submit"
+									disabled={!commentText.trim() || feedbackStates.comment === 'saving'}
+									className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer max-w-42"
+									>
+									{feedbackStates.comment === 'saving' ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Post'}
 								</button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end">
-								<DropdownMenuItem onSelect={() => handleFlagSelect('Offensive')}>
-									Offensive
-								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => handleFlagSelect('Inaccurate')}>
-									Inaccurate
-								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => handleFlagSelect('Confusing')}>
-									Confusing
-								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => handleFlagSelect('Duplicate')}>
-									Duplicate
-								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => handleFlagSelect('Other')}>
-									Other (please also leave a comment)
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-
-            {/* Comment button */}
-            <button
-              onClick={showCommentInput ? undefined : handleCommentClick}
-              className="feedback-btn cursor-pointer transition-all duration-300"
-              aria-label="Comment on this event"
-            >
-              {feedbackStates.comment === 'saving' ? (
-                <Loader2 className="w-4 h-4 text-blue-500" />
-              ) : (
-                <MessageSquare
-                  className={`w-4 h-4 ${
-                    feedbackStates.comment === 'success' 
-                      ? 'text-blue-500 fill-blue-500' 
-                      : 'text-muted-foreground opacity-60 hover:opacity-100'
-                  }`}
-                />
-              )}
-            </button>
-          </div>
+								<button
+									type="button"
+									onClick={handleCommentCancel}
+									className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+									>
+									Cancel
+								</button>
+							</form>
+						)}
+					</>
         )}
 
-        {/* ================================================================ */}
-        {/* COMMENT INPUT FIELD - Appears when comment button is clicked */}
-        {/* ================================================================ */}
-        {(variant === 'timeline' || variant === 'incorrect') && showCommentInput && (
-					<form
-						onSubmit={handleCommentSubmit}
-						className="comment-input block p-4 pt-4 mt-4 border-t border-border"
-					>
-						<p className="info mb-4 text-neutral-400">Your comment will not be public, only the admins will see it.</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add a comment..."
-                className="flex-1 text-sm bg-background border border-muted-foreground/20 rounded px-3 py-2 focus:outline-none focus:border-primary"
-                autoFocus
-                onClick={e => e.stopPropagation()}
-              />
-              <button
-                type="submit"
-                disabled={!commentText.trim() || feedbackStates.comment === 'saving'}
-                className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {feedbackStates.comment === 'saving' ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Post'}
-              </button>
-              <button
-                type="button"
-                onClick={handleCommentCancel}
-                className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
       </div>
     </Card>
   );
