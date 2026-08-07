@@ -817,6 +817,8 @@ export function PlayPage() {
 								variant="drawn"
 								event={drawnCard}
 								badRangeTexts={badRangeTexts}
+								allExpanded={allExpanded}
+								onExpandChange={handleExpandChange}
 								isNewlyPlaced={false}
 							/>
 						)}
