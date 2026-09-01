@@ -280,3 +280,203 @@
 		display: none;
 	}
 }
+
+
+
+
+
+
+
+
+
+.drawn {
+	border-color: #00BFFF;
+	border-width: 2px;
+}
+
+
+/* Guide highlighting system - blue #00BFFF with varying intensity */
+/* .drawn .event-card-liner {
+  border: 2px solid #00BFFF;
+	} */
+.drawn-guide-5, .drawn-guide-4 {
+	border-radius: 8px;
+	border: 6px solid #00BFFF;
+}
+.drawn-guide-4 {
+	border: 2px solid #00BFFF;
+
+  /* position: relative; */
+  /* border-top-width: 40px; */
+  /* border-bottom-left-radius: 0; */
+  /* border-bottom-right-radius: 0; */
+}
+
+/* .drawn-guide-5::after, .drawn-guide-4::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-top: 20px solid #00BFFF;
+} */
+
+.drawn-guide-5::before, .drawn-guide-4::before {
+  content: "Where does this event go in the timeline?"; /* html entities don't work here… */
+	text-align: center;
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  background: #00BFFF;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: wrap;
+	transform-origin: center;
+  /* transform: translateX(-50%); */
+	animation: guide-bounce-center 1.25s infinite;
+}
+
+
+
+button.draw {
+	background-color: #00BFFF; /* Full intensity blue */
+
+}
+
+.guide-5, .guide-4, .guide-3, .guide-2, .guide-1, .guide-0 {
+  position: relative;
+  /* overflow: hidden; */
+}
+
+.guide-5, .guide-4 {
+  background-color: #00BFFF; /* Full intensity blue */
+  /* position: relative; */
+}
+
+.guide-3 {
+	background-color: #00BFFF; /* Full intensity blue */
+  /* background-color: #4DA3FF; Medium blue */
+  /* animation: guide-shimmer 3s infinite; */
+  /* position: relative; */
+}
+
+.guide-2 {
+	background-color: #00BFFF; /* Full intensity blue */
+  /* background-color: #80C0FF; Light blue */
+}
+
+.guide-1 {
+	background-color: #00BFFF; /* Full intensity blue */
+  /* background-color: #B3D9FF; Very light blue */
+}
+
+.guide-0 {
+  /* background-color: #B3D9FF66; Very light blue */
+}
+
+/* Question mark for highest levels */
+.guide-5::before,
+.guide-4::before {
+  content: '?';
+	box-shadow: 2px 2px 5px 3px #00000043;
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #00BFFF;
+  border-color: #00BFFF;
+	border-style: solid;
+	border-width: 4px;
+  animation: guide-bounce-wiggle 1.5s infinite;
+	z-index: 10;
+	top: -8px;
+	left: -8px;
+}
+.draw-panel .guide-5::before,
+.draw-panel .guide-4::before {
+	content: '→';
+	transform-origin: right;
+	animation: guide-bounce-point 1.5s infinite;
+}
+
+.guide-5::after, .guide-4::after, .guide-3::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    white 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  /* animation: guide-shimmer 4s infinite; */
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+
+
+/* @keyframes guide-shimmer {
+	0%   { transform: translateX(-100%); opacity: 0; }
+	15%  { transform: translateX(-100%); opacity: 1; }
+	85%  { transform: translateX(200%); opacity: 1; }
+	100% { transform: translateX(200%); opacity: 0; }
+} */
+
+@keyframes guide-bounce-center {
+  0%, 100% { 
+    transform:translateX(-50%) translateY(calc(-50% + 2px));
+  }
+	50% { 
+    transform:translateX(-50%) translateY(calc(-50% - 2px)); 
+  }
+}
+
+@keyframes guide-bounce-wiggle {
+  0%, 100% { 
+    transform: translateY(0) rotate(-10deg); 
+  }
+  25% { 
+    transform: translateY(-5px) rotate(0deg); 
+  }
+  50% { 
+    transform: translateY(3px) rotate(10deg); 
+  }
+  75% { 
+    transform: translateY(-5px) rotate(0deg); 
+  }
+}
+
+
+@keyframes guide-bounce-point {
+  0%, 100% { 
+    transform: translateX(10px) translateY(3px) rotate(10deg); 
+  }
+  25% { 
+    transform: translateX(-5px) translateY(0px) rotate(10deg); 
+  }
+  50% { 
+    transform: translateX(10px) translateY(3px) rotate(10deg); 
+  }
+  75% { 
+    transform: translateX(-5px) translateY(0px) rotate(10deg); 
+  }
+}
+
+
+
+
+

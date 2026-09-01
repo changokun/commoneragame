@@ -28,6 +28,8 @@ interface DrawPanelHorizontalProps {
   newlyIncorrectId: string | null;
   allExpanded?: boolean | null;
   onExpandChange?: (expanded: boolean, eventId: string) => void;
+	guideClass?: string;
+	drawnCard?: Event | null;
 }
 
 export function DrawPanelHorizontal({
@@ -39,6 +41,8 @@ export function DrawPanelHorizontal({
   newlyIncorrectId,
   allExpanded,
   onExpandChange,
+	guideClass = 'guide-0',
+	drawnCard
 }: DrawPanelHorizontalProps) {
   // ==========================================================================
   // This component renders the draw button and incorrect cards in a single
@@ -46,18 +50,18 @@ export function DrawPanelHorizontal({
   // ==========================================================================
 
   return (
-    <div className="horizontal-draw-panel p-2 overflow-x-auto whitespace-nowrap flex gap-4">
+    <div className="draw-panel horizontal-draw-panel p-2 overflow-x-auto whitespace-nowrap flex gap-4">
       {/* ====================================================================== */}
       {/* Draw Button - fixed at start of row */}
       {/* ====================================================================== */}
       {/* <div className="inline-block pr-4 h-full"> */}
         <Button
-          className="whitespace-nowrap h-full"
+          className={`whitespace-nowrap h-full draw cursor-pointer ${(! drawnCard && ! drawStackEmpty && ! isGameOver) ? guideClass : ''}`}
           size="sm"
           onClick={onDraw}
           disabled={isGameOver || drawStackEmpty}
         >
-          {drawStackEmpty ? "No More Events" : "Draw New Event..."}
+          {drawStackEmpty ? "No More Events" : "Draw New Event…"}
         </Button>
       {/* </div> */}
 

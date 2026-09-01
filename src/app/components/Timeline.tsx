@@ -12,7 +12,7 @@ import { Event } from "../types";
 // 	isNew?: boolean;
 // }
 
-function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }: PlacementOptionProps) {
+function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace, guideClass }: PlacementOptionProps) {
 	const b = before ? formatEventDateForComparison(before) : null
 	const a = after ? formatEventDateForComparison(after) : null
 	
@@ -40,7 +40,7 @@ function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace }
 			<Button
 				variant={drawnCard ? "secondary" : "outline"}
 				size="lg"
-				className={`w-full justify-start transition-none ${drawnCard ? "opacity-100 cursor-pointer" : "opacity-20 pointer-events-none text-muted-foreground/50"}`}
+				className={`w-full justify-start transition-none ${drawnCard ? `opacity-100 cursor-pointer ${guideClass}` : "opacity-20 pointer-events-none text-muted-foreground/50"}`}
 				data-splicestartindex={spliceStartIndex}
 				onClick={() => onPlace({ a, b })}
 				tabIndex={drawnCard ? 0 : -1}
@@ -61,6 +61,7 @@ interface TimelineProps {
 	onPlace?: (placement: { after: string | null; before: string | null }) => void;
 	allExpanded: boolean | null;
 	onExpandChange: (expanded: boolean, id: string) => void;
+	guideClass: string;
 }
 
 interface PlacementOptionProps {
@@ -69,6 +70,7 @@ interface PlacementOptionProps {
   after?: any;
 	drawnCard: any;
   onPlace: (placement: { a: string; b: string }) => void; 
+	guideClass: string;
 }
 
 function sortEventsByDate(events: Event[]): Event[] {
@@ -93,7 +95,7 @@ function doNotDoAnything() {
 	console.log('nuttin doin')
 }
 
-export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMove, handleIncorrectMove, newlyPlacedId, allExpanded, onExpandChange }: TimelineProps) {
+export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMove, handleIncorrectMove, newlyPlacedId, allExpanded, onExpandChange, guideClass = 'guide-5' }: TimelineProps) {
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -267,7 +269,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 
 	
 	items.push(
-		<PlacementOption key={`po-1`} spliceStartIndex={0} before={events[0]} drawnCard={drawnCard} onPlace={drawnCard && correctPosition === 0 ? handleCorrectMove : onPlace} />
+		<PlacementOption key={`po-1`} spliceStartIndex={0} before={events[0]} drawnCard={drawnCard} onPlace={drawnCard && correctPosition === 0 ? handleCorrectMove : onPlace} guideClass={guideClass} />
 	)
 
 	events.forEach((event, index) => {
@@ -289,7 +291,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 		)
 		
 		items.push(
-			<PlacementOption key={`po${index}`} spliceStartIndex={index + 1} before={events[index + 1]} after={events[index]} drawnCard={drawnCard} onPlace={drawnCard && correctPosition === index + 1 ? handleCorrectMove : onPlace} />
+			<PlacementOption key={`po${index}`} spliceStartIndex={index + 1} before={events[index + 1]} after={events[index]} drawnCard={drawnCard} onPlace={drawnCard && correctPosition === index + 1 ? handleCorrectMove : onPlace} guideClass={guideClass} />
 		)
 	})
 	

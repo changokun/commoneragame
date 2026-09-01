@@ -27,6 +27,8 @@ interface DrawPanelVerticalProps {
   newlyIncorrectId: string | null;
   allExpanded?: boolean | null;
   onExpandChange?: (expanded: boolean, eventId: string) => void;
+	guideClass?: string;
+	drawnCard?: Event | null;
 }
 
 export function DrawPanelVertical({
@@ -38,6 +40,8 @@ export function DrawPanelVertical({
   newlyIncorrectId,
   allExpanded,
   onExpandChange,
+	guideClass = 'guide-0',
+	drawnCard
 }: DrawPanelVerticalProps) {
   // ==========================================================================
   // This component renders the draw button and incorrect cards in a vertical
@@ -45,18 +49,18 @@ export function DrawPanelVertical({
   // ==========================================================================
 
   return (
-    <div className="space-y-4 h-full">
+    <div className="space-y-4 h-full draw-panel vertical-draw-panel">
       {/* ====================================================================== */}
       {/* Draw Button */}
       {/* ====================================================================== */}
       <div>
         <Button
-          className="w-full"
+					className={`whitespace-nowrap w-full cursor-pointer draw ${(! drawnCard && ! drawStackEmpty && ! isGameOver) ? guideClass : ''}`}
           size="lg"
           onClick={onDraw}
-          disabled={isGameOver || drawStackEmpty}
+          disabled={ !! drawnCard || isGameOver || drawStackEmpty}
         >
-          {drawStackEmpty ? "No More Events" : "Draw New Event..."}
+          {drawStackEmpty ? "No More Events" : "Draw New Event…"}
         </Button>
       </div>
 
@@ -67,8 +71,8 @@ export function DrawPanelVertical({
         <div>
           <h3 className="text-sm font-semibold mb-2">
             {drawStackEmpty
-              ? `...and ${incorrectCards.length} incorrect guesses`
-              : "...or try one of these again:"}
+              ? `…and ${incorrectCards.length} incorrect guesses`
+              : incorrectCards.length > 1 ? "…or try one of these again:" : "…or try this one again:"}
           </h3>
           <div className="space-y-2">
             {incorrectCards.map((card) => (

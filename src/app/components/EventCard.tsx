@@ -29,6 +29,7 @@ interface EventCardProps {
    * Additional CSS classes for the root Card element
    */
   className?: string;
+	guideClass: 'guide-0'
 }
 
 
@@ -55,6 +56,7 @@ export function EventCard({
   allExpanded = null,
   onExpandChange,
   className,
+	guideClass = 'guide-0'
 }: EventCardProps) {
 
 	// Local expanded state for this card
@@ -343,14 +345,14 @@ export function EventCard({
   /**
    * Base card classes that all variants share
    */
-  const baseCardClasses = `event-card ${variant} border-secondary-foreground border-1`;
+  const baseCardClasses = `event-card ${variant}`; // border-primary border-2
   const shadowClasses = variant === 'drawn' ? "shadow-2xl" : "shadow-lg";
 
   /**
    * Variant-specific card classes
    */
   const variantCardClasses = {
-    drawn: "absolute z-30",
+    drawn: `absolute z-30`,
     timeline: "w-full mb-4",
     incorrect: "w-full cursor-pointer hover:bg-muted/50",
   };
@@ -370,7 +372,7 @@ export function EventCard({
 
   return (
     <Card className={`${cardClasses}${className ? ' ' + className : ''}`} onClick={onClick}>
-      <div className={`event-card-liner p-4 ${displayExpanded? 'pb-8': ''} relative`}>
+      <div className={`event-card-liner drawn-${guideClass} p-4 ${displayExpanded? 'pb-8': ''} relative`}>
         {/* ================================================================ */}
         {/* CHEVRON BUTTON - Upper right, large hitbox */}
         {/* ================================================================ */}

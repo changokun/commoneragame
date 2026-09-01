@@ -197,6 +197,8 @@ export function PlayPage() {
 	}, [gameState, userSession]);
 
 
+	const guideLevel = gameState?.state ? Math.max(0, 7 - gameState.state.timelineCollaborative.length) : 5;
+	const guideClass = `guide-${guideLevel}`;
 
 	// no more cards left to draw. we will disable the button (permanently) and revise the verbiage.
 	const drawStackEmpty = ! drawnCard && (!gameState?.remainingEventCount || gameState.remainingEventCount <= 0);
@@ -785,6 +787,8 @@ export function PlayPage() {
 						newlyIncorrectId={newlyIncorrectId}
 						allExpanded={allExpanded}
 						onExpandChange={handleExpandChange}
+						guideClass={guideClass}
+						drawnCard={drawnCard}
 					/>
 				</div>
 			)}
@@ -820,6 +824,7 @@ export function PlayPage() {
 								allExpanded={allExpanded}
 								onExpandChange={handleExpandChange}
 								isNewlyPlaced={false}
+								guideClass={guideClass}
 							/>
 						)}
 					</div>
@@ -838,6 +843,8 @@ export function PlayPage() {
 									newlyIncorrectId={newlyIncorrectId}
 									allExpanded={allExpanded}
 									onExpandChange={handleExpandChange}
+									guideClass={guideClass}
+									drawnCard={drawnCard}
 								/>
 							</div>
 					)}
