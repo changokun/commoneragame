@@ -31,6 +31,7 @@ interface FormData {
   upThroughNumber: string;
   upThroughSuffix: string;
   filterTags: string[];
+  difficultyRange: [number, number];
 }
 
 interface Preset {
@@ -82,6 +83,15 @@ const TIME_SUFFIX_OPTIONS = [
   "BCE",
   "CE",
 ];
+
+// Difficulty level labels
+const DIFFICULTY_LABELS = {
+  1: "Easy",
+  2: "Elementary",
+  3: "Secondary",
+  4: "University",
+  5: "PhD",
+};
 
 /**
  * CompositeDateInput - A component that combines a numeric input with a time suffix dropdown
@@ -155,6 +165,7 @@ export function NewGamePage() {
     upThroughNumber: String(new Date().getFullYear()),
     upThroughSuffix: "CE",
     filterTags: [],
+    difficultyRange: [2, 3],
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -314,7 +325,9 @@ export function NewGamePage() {
           body: JSON.stringify({
             from: formData.beginningFrom,
             to: formData.upThrough,
-            filterTags: formData.filterTags
+            filterTags: formData.filterTags,
+            difficultyMin: formData.difficultyRange[0],
+            difficultyMax: formData.difficultyRange[1]
           }),
         });
         const data = await response.json();
@@ -335,7 +348,8 @@ export function NewGamePage() {
   }, [
     formData.beginningFrom,
     formData.upThrough,
-    formData.filterTags
+    formData.filterTags,
+    formData.difficultyRange
   ]);
 
   const handleSubmit = async () => {
@@ -387,7 +401,9 @@ export function NewGamePage() {
           targetScore: formData.targetScore,
           beginningFrom: formData.beginningFrom,
           upThrough: formData.upThrough,
-          filterTags: formData.filterTags
+          filterTags: formData.filterTags,
+          difficultyMin: formData.difficultyRange[0],
+          difficultyMax: formData.difficultyRange[1]
         }),
       });
 
@@ -415,6 +431,8 @@ export function NewGamePage() {
       (formData.deviceMode &&
        (formData.deviceMode === "multiple" ||
         formData.playerNames.filter(name => name.trim()).length >= 2)));
+
+	const difficultyLabel = formData.difficultyRange[0] === formData.difficultyRange[1] ? DIFFICULTY_LABELS[formData.difficultyRange[0]] : `${DIFFICULTY_LABELS[formData.difficultyRange[0]]} to ${DIFFICULTY_LABELS[formData.difficultyRange[1]]}`
 
   return (
     <TooltipProvider>
@@ -635,6 +653,37 @@ export function NewGamePage() {
                     setFormData({ ...formData, targetScore: value[0] })
                   }
                 />
+              </div>
+
+              {/* Difficulty Range Slider */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1">
+                  Event Difficulty: {difficultyLabel}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Filter events by difficulty level. Only events within this range will be included.
+                    </TooltipContent>
+                  </Tooltip>
+                </Label>
+                <Slider
+                  min={1}
+                  max={5}
+                  step={1}
+                  value={formData.difficultyRange}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, difficultyRange: value as [number, number] })
+                  }
+                />
+                <div className="flex justify-between text-xs text-muted-foreground px-1">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span key={i} className={formData.difficultyRange[0] <= i + 1 && i + 1 <= formData.difficultyRange[1] ? "font-bold text-primary" : ""}>
+                      {DIFFICULTY_LABELS[i + 1 as keyof typeof DIFFICULTY_LABELS]}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               {/* Event Count Slider
