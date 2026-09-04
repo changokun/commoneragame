@@ -290,7 +290,7 @@ export function PlayPage() {
 		// console.log('check agains empty draw stack')
 		// Check for DEFEAT: no cards left in draw stack
 		if (drawStackEmpty) {
-			return { isGameOver: true, isVictory: false, gameEndDescription: 'No player could win before the draw pile was exhausted.' };
+			return { isGameOver: true, isVictory: true, gameEndDescription: 'The draw pile was exhausted.' };
 		}
 		
 
@@ -736,9 +736,9 @@ export function PlayPage() {
 								Results
 							</Button>
 						)}
-						<Button variant="ghost" size="icon">
+						{/* <Button variant="ghost" size="icon">
 							<Settings className="h-4 w-4" />
-						</Button>
+						</Button> */}
 					</div>
 				</div>
 
@@ -756,9 +756,9 @@ export function PlayPage() {
 					<div className="flex items-center gap-3 text-xs text-muted-foreground">
 						{isCollaborative ? (
 							<>
-								<span title="Timeline length">Score: {gameState.state.timelineCollaborative.length}</span>
-								<span title="Remaining events">Remaining Events: {gameState.remainingEventCount ?? 0}</span>
-								<span title="Missed guesses">Misses: {gameState.state.incorrectCardStack.length}</span>
+								<span title="Timeline length">Score: {gameState.state.timelineCollaborative.length - 2}</span>
+								{/* <span title="Remaining events">Remaining Events: {gameState.remainingEventCount ?? 0}</span> */}
+								<span title="Missed guesses">Misses: {gameState.state.incorrectCardStack.length}/{gameState.settings.strikeLimit}</span>
 							</>
 						) : (
 							gameState.players.map((player, index) => (
@@ -812,6 +812,7 @@ export function PlayPage() {
 								newlyPlacedId={newlyPlacedId}
 								allExpanded={allExpanded}
 								onExpandChange={handleExpandChange}
+								guideClass={guideClass}
 							/>
 						{/* </div> */}
 

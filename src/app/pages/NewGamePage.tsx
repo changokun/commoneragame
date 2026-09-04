@@ -151,9 +151,9 @@ function CompositeDateInput({
 export function NewGamePage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>({
-    gameMode: null,
-    playerType: null,
-    deviceMode: null,
+    gameMode: 'collaborative',
+    playerType: 'justMe',
+    deviceMode: 'single',
     playerNames: [""],
     // maxEvents: 30,
     strikeLimit: 3,
@@ -427,6 +427,7 @@ export function NewGamePage() {
   const allQuestionsAnswered =
     formData.gameMode &&
     formData.playerType &&
+		// (availableEvents && availableEvents >= 9) &&
     (formData.playerType === "justMe" ||
       (formData.deviceMode &&
        (formData.deviceMode === "multiple" ||
@@ -453,44 +454,47 @@ export function NewGamePage() {
         </p>
       </div>
 
-      <div className="space-y-6">
-        <Card className="p-6 space-y-4">
-          <h2 className="text-xl font-semibold">
-            Would you like to play competitively or&nbsp;collaboratively?
-          </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
-              onClick={() => handleGameModeSelect("competitive")}
-              className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${
-                formData.gameMode === "competitive"
-                  ? "border-primary bg-primary/5"
-                  : "border-border"
-              }`}
-            >
-              <h3 className="font-semibold text-lg mb-2">Play to Win</h3>
-              <p className="text-sm text-muted-foreground">
-                First player to complete their timeline&nbsp;wins
-              </p>
-            </button>
+			<div className="space-y-6">
+				{false && (
+					<Card className="p-6 space-y-4">
+						<h2 className="text-xl font-semibold">
+							Would you like to play competitively or&nbsp;collaboratively?
+						</h2>
 
-            <button
-              onClick={() => handleGameModeSelect("collaborative")}
-              className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${
-                formData.gameMode === "collaborative"
-                  ? "border-primary bg-primary/5"
-                  : "border-border"
-              }`}
-            >
-              <h3 className="font-semibold text-lg mb-2">Play to Build</h3>
-              <p className="text-sm text-muted-foreground">
-                Work together with others to build a single&nbsp;timeline
-              </p>
-            </button>
-          </div>
-        </Card>
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+							<button
+								onClick={() => handleGameModeSelect("competitive")}
+								className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${
+									formData.gameMode === "competitive"
+									? "border-primary bg-primary/5"
+									: "border-border"
+									}`}
+									>
+								<h3 className="font-semibold text-lg mb-2">Play to Win</h3>
+								<p className="text-sm text-muted-foreground">
+									First player to complete their timeline&nbsp;wins
+								</p>
+							</button>
 
-        {formData.gameMode && (
+							<button
+								onClick={() => handleGameModeSelect("collaborative")}
+								className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${
+									formData.gameMode === "collaborative"
+									? "border-primary bg-primary/5"
+									: "border-border"
+									}`}
+									>
+								<h3 className="font-semibold text-lg mb-2">Play to Build</h3>
+								<p className="text-sm text-muted-foreground">
+									Work together with others to build a single&nbsp;timeline
+								</p>
+							</button>
+						</div>
+					</Card>
+					)}
+
+        {false && formData.gameMode && (
           <Card className="p-6 space-y-4">
             <h2 className="text-xl font-semibold">Who’s Playing?</h2>
 
@@ -526,7 +530,7 @@ export function NewGamePage() {
           </Card>
         )}
 
-        {formData.gameMode && formData.playerType === "multiple" && (
+        {false && formData.gameMode && formData.playerType === "multiple" && (
           <Card className="p-6 space-y-4">
             <h2 className="text-xl font-semibold">
               Do you want to play on only this device or have other players join on their own&nbsp;devices?
@@ -564,7 +568,7 @@ export function NewGamePage() {
           </Card>
         )}
 
-        {formData.gameMode && formData.playerType === "multiple" && formData.deviceMode === "single" && (
+        {false && formData.gameMode && formData.playerType === "multiple" && formData.deviceMode === "single" && (
           <Card className="p-6 space-y-4">
             <h2 className="text-xl font-semibold">Player Names</h2>
             <p className="text-sm text-muted-foreground">
@@ -613,7 +617,7 @@ export function NewGamePage() {
               </p>
             </div>
 
-            {/* Preset Selector */}
+            {/* Preset Selector
             <div className="space-y-2">
               <Label>Quick Presets</Label>
               <Select onValueChange={handlePresetSelect}>
@@ -629,6 +633,7 @@ export function NewGamePage() {
                 </SelectContent>
               </Select>
             </div>
+						*/}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Target Score Slider - Play until score is reached */}
@@ -807,6 +812,9 @@ export function NewGamePage() {
                 ) : (
                   "Enter filter criteria to see available events"
                 )}
+								{availableEvents && availableEvents < 9 && (
+									<span className="ml-2 text-red-800">Not enough. Try adding Topics, expanding difficulty, or the time range</span>
+								)}
               </p>
             </div>
           </Card>
@@ -822,7 +830,7 @@ export function NewGamePage() {
           <div className="flex justify-end">
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || ! availableEvents}
+              disabled={isSubmitting || ! availableEvents || availableEvents < 9}
               size="lg"
             >
               {isSubmitting ? (

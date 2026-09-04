@@ -343,6 +343,33 @@
 	animation: guide-bounce-center 1.25s infinite;
 }
 
+/* Intro speech balloon - informational with downward pointer */
+.intro {
+	position: relative;
+	background: #00BFFF;
+	color: white;
+	padding: 16px 20px;
+	border-radius: 12px;
+	margin-bottom: 30px;
+	font-size: 16px;
+	line-height: 1.5;
+	max-width: 600px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.intro::after {
+	content: '';
+	position: absolute;
+	bottom: -15px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 0;
+	height: 0;
+	border-left: 15px solid transparent;
+	border-right: 15px solid transparent;
+	border-top: 15px solid #00BFFF;
+}
 
 
 button.draw {

@@ -263,9 +263,20 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 			key={999991} 
 			className="timeline-card-container min-h-screen"
 		>
-			
+ 
 		</div>
 	)
+
+	if(guideClass.indexOf('5') !== -1) {
+		items.push(
+			<div
+				key={98989898}
+				className="intro"
+			>{guideClass}
+				This is your timeline. Older events are at the top, more recent events are at the bottom. Grow your timeline by drawing events and placing them correctly inbetween the events that are already in your timeline. It starts with two random events.
+			</div>
+		)
+	}
 
 	
 	items.push(
