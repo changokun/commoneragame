@@ -812,7 +812,7 @@ export function NewGamePage() {
                 ) : (
                   "Enter filter criteria to see available events"
                 )}
-								{availableEvents && availableEvents < 9 && (
+								{availableEvents != null && availableEvents < 9 && (
 									<span className="ml-2 text-red-800">Not enough. Try adding Topics, expanding difficulty, or the time range</span>
 								)}
               </p>
