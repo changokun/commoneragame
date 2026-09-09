@@ -3,6 +3,7 @@ import { RootLayout } from "./components/RootLayout";
 import { HomePage } from "./pages/HomePage";
 import { NewGamePage } from "./pages/NewGamePage";
 import { JoinGamePage } from "./pages/JoinGamePage";
+import { AdminPage } from "./pages/admin/AdminPage";
 import { EditTagPage } from "./pages/admin/tags/EditTagPage";
 import { TagsPage } from "./pages/admin/tags/TagsPage";
 import { EventsPage } from "./pages/admin/events/EventsPage";
@@ -21,6 +22,10 @@ export const router = createBrowserRouter([
 			{ path: "play/:gameId?", Component: PlayPage },
 			{ path: "*", Component: () => <div>404 - Page not found</div> },
 		],
+	},
+	{
+		path: "/admin",
+		element: <AdminPage />,
 	},
 	{
 		path: "/admin/tags/edit/:id",
