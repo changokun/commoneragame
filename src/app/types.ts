@@ -118,6 +118,7 @@ export interface Event {
   strikes?: object[];     // Array of {player IDs & the date ranges} who got this wrong
   tags?: string[];        // Array of tag IDs associated with this event
   feedbacks?: Feedback[]; // Array of feedback objects for this event
+	difficulty?: number; // 1-5
   // Future: could add category, difficulty, imageUrl, etc.
 }
 

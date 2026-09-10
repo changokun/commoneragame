@@ -30,7 +30,13 @@ const DATE_PRECISION_OPTIONS = [
 	{ value: "exact", label: "Exact" }
 ];
 
-
+const DIFFICULTY_OPTIONS = [
+  { value: "1", label: "Primary/Elementary" },
+  { value: "2", label: "Intermediate" },
+  { value: "3", label: "Secondary/High School" },
+  { value: "4", label: "University" },
+  { value: "5", label: "PhD" }
+];
 
 /**
  * EditEventPage - Admin page for editing a single event
@@ -68,6 +74,7 @@ export function EditEventPage() {
 		datePrecision: 'idle' | 'saving' | 'success' | 'error';
 		date: 'idle' | 'saving' | 'success' | 'error';
 		dateBCE: 'idle' | 'saving' | 'success' | 'error';
+		difficulty: 'idle' | 'saving' | 'success' | 'error';
 	}>({
 		title: 'idle',
 		description: 'idle',
@@ -75,6 +82,7 @@ export function EditEventPage() {
 		datePrecision: 'idle',
 		date: 'idle',
 		dateBCE: 'idle',
+		difficulty: 'idle',
 	});
 	
 	// Original values for change detection
@@ -85,7 +93,16 @@ export function EditEventPage() {
 		datePrecision: string;
 		date: Date | null;  // Changed from string
 		dateBCE: number;
-	}>({ title: '', description: '', tags: [], datePrecision: 'year', date: null, dateBCE: 0 });
+		difficulty: number;
+	}>({
+		title: '',
+		description: '',
+		tags: [],
+		datePrecision: 'year',
+		date: null,
+		dateBCE: 0,
+		difficulty: 3
+	});
 
 	// State for rsuite TagPicker
 	const [tagOptions, setTagOptions] = useState<TagOption[]>([]);
@@ -129,6 +146,7 @@ export function EditEventPage() {
 					datePrecision: data.event.datePrecision || 'year',
 					date: data.event.date || '',
 					dateBCE: data.event.dateBCE || 0,
+					difficulty: data.event.difficulty || 3,
 				});
 				
 				// Pre-populate tagOptions with proper label/value pairs
@@ -211,6 +229,12 @@ export function EditEventPage() {
 
 	const handleDescriptionBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
 		saveField('description', e.target.value);
+	};
+
+	const handleDifficultyBlur = () => {
+		if (event) {
+			saveField('difficulty', event.difficulty);
+		}
 	};
 
 	const handleDatePrecisionChange = (newValue: string) => {
@@ -608,6 +632,26 @@ const formatDateLabel = (dateObj: Date | null, datePrecision: string): string =>
 						placeholder="Start typing to add tags..."
 						multiple
 					/>
+				</div>
+
+				{/* Difficulty Field */}
+				<div className="space-y-2">
+					<Label>Difficulty (for someone educated in COUNTRY_TAG)</Label>
+					<Select
+						value={String(event.difficulty || 3)}
+						onValueChange={(value) => setEvent({ ...event!, difficulty: parseInt(value, 10) })}
+					>
+						<SelectTrigger className="w-full" onBlur={handleDifficultyBlur}>
+							<SelectValue placeholder="Select difficulty" />
+						</SelectTrigger>
+						<SelectContent>
+							{DIFFICULTY_OPTIONS.map((option) => (
+								<SelectItem key={option.value} value={option.value}>
+									{option.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
 				
 				{/* Date Precision Field - dropdown for selecting precision level */}
