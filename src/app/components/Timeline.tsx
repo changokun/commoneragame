@@ -224,10 +224,11 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 				events.forEach((event, index) => {
 					if(correctPosition === -9) { // still not set
 						// console.log('index', index, event.dateBCE)
-						if(event.dateBCE && event.dateBCE > drawnCard.dateBCE) {
+						if( ! event.dateBCE || event.dateBCE > drawnCard.dateBCE) {
 							correctPosition = index
 						}
 					}
+
 				})
 			}
 		} else {
@@ -246,6 +247,9 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 						}
 					}
 				})
+				if(correctPosition === -9) {
+					console.log('correctPosition?????', correctPosition, 'drawnCard.date', drawnCard.date)
+				}
 			}
 		}
 		// console.log('correctPosition', correctPosition)
