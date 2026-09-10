@@ -119,7 +119,7 @@ export interface Event {
   tags?: string[];        // Array of tag IDs associated with this event
   feedbacks?: Feedback[]; // Array of feedback objects for this event
 	difficulty?: number; // 1-5
-  // Future: could add category, difficulty, imageUrl, etc.
+  sources?: string[]; // Array of source URLs
 }
 
 export interface Strike {

@@ -691,7 +691,28 @@ export function EditEventPage() {
 						</SelectContent>
 					</Select>
 				</div>
-				
+
+
+				{/* Event Sources */}
+				{event.sources && event.sources.length > 0 && (
+					<div className="space-y-2 pt-4 border-t border-border">
+						<Label>Sources</Label>
+						<div className="flex flex-wrap gap-2">
+							{event.sources.map((source, index) => (
+								<a
+									key={index}
+									href={source}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="text-primary underline hover:text-primary/80"
+								>
+									{source}
+								</a>
+							))}
+						</div>
+					</div>
+				)}
+
 			</Card>
 
 			{/* ======================================================================== */}
