@@ -96,7 +96,7 @@ export interface Feedback {
   playerName?: string;   // Optional direct player name field (fallback)
   type: "favorite" | "flag" | "comment";  // Type of feedback action
   reason?: string;       // Optional reason for flag feedback
-  comment?: string;      // Optional comment text
+  text?: string;      // Optional comment text
   isResolved: boolean;   // Whether this feedback has been addressed
   createdAt: string;    // ISO date string
   updatedAt: string;    // ISO date string

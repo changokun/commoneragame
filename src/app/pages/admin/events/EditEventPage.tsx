@@ -366,33 +366,33 @@ export function EditEventPage() {
 		}
 	};
 
-const formatDateLabel = (dateObj: Date | null, datePrecision: string): string => {
-  if (!dateObj) return 'CE';
+	const formatDateLabel = (dateObj: Date | null, datePrecision: string): string => {
+		if (!dateObj) return 'CE';
 
-  switch (datePrecision) {
-    case 'exact':
-    case 'minute':
-      return dateObj.toLocaleString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      });
-    case 'hour':
-      return dateObj.toLocaleString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit'
-      });
-    case 'day':
-      return dateObj.toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric'
-      });
-    case 'month':
-      return dateObj.toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long'
-      });
-    default: // year, decade, century, millennium, million-years
-      return String(dateObj.getFullYear());
-  }
-};
+		switch (datePrecision) {
+			case 'exact':
+			case 'minute':
+				return dateObj.toLocaleString('en-US', {
+					year: 'numeric', month: 'long', day: 'numeric',
+					hour: '2-digit', minute: '2-digit'
+				});
+			case 'hour':
+				return dateObj.toLocaleString('en-US', {
+					year: 'numeric', month: 'long', day: 'numeric',
+					hour: '2-digit'
+				});
+			case 'day':
+				return dateObj.toLocaleDateString('en-US', {
+					year: 'numeric', month: 'long', day: 'numeric'
+				});
+			case 'month':
+				return dateObj.toLocaleDateString('en-US', {
+					year: 'numeric', month: 'long'
+				});
+			default: // year, decade, century, millennium, million-years
+				return String(dateObj.getFullYear());
+		}
+	};
 
 	/**
 	 * Get user-friendly label for feedback type
@@ -440,6 +440,24 @@ const formatDateLabel = (dateObj: Date | null, datePrecision: string): string =>
 			// Then by createdAt chronologically (oldest first)
 			return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 		});
+	};
+
+	/**
+	 * Get information about favorite feedbacks for this event
+	 * Returns count and alphabetized list of player names
+	 */
+	const getFavoriteInfo = (): { count: number; players: string[] } => {
+		const favorites = (event?.feedbacks || []).filter(f => f.type === 'favorite');
+		// Use Set to ensure unique player names, then sort alphabetically
+		const players = [...new Set(favorites.map(f => getPlayerName(f)))].sort();
+		return { count: favorites.length, players };
+	};
+	
+	/**
+	 * Get sorted feedbacks excluding favorites
+	 */
+	const getNonFavoriteFeedbacks = (): Feedback[] => {
+		return getSortedFeedbacks().filter(f => f.type !== 'favorite');
 	};
 
 	/**
@@ -679,14 +697,27 @@ const formatDateLabel = (dateObj: Date | null, datePrecision: string): string =>
 			{/* ======================================================================== */}
 			{/* FEEDBACK SECTION - Display all feedbacks for this event */}
 			{/* ======================================================================== */}
-			<Card className="p-6 space-y-4">
-				<h2 className="text-xl font-semibold">Feedbacks</h2>
+			<Card className="p-6 space-y-4 relative">
+				<h2 className="text-xl font-semibold">Feedback</h2>
+
+				{/* Favorite count badge at top right */}
+				{getFavoriteInfo().count > 0 && (
+					<div className="absolute top-8 right-6 flex items-center gap-1 text-pink-500" title={getFavoriteInfo().players.join(', ')}>
+						<Heart className="h-5 w-5" />
+						<span>
+							{getFavoriteInfo().count}
+						</span>
+					</div>
+				)}
 				
-				{getSortedFeedbacks().length === 0 ? (
-					<p className="text-muted-foreground text-center py-4">No feedbacks for this event.</p>
+				{/* Filtered feedback list - excludes favorites */}
+				{getNonFavoriteFeedbacks().length === 0 ? (
+					<p className="text-muted-foreground text-center py-4">
+						{getFavoriteInfo().count > 0 ? 'No non-favorite feedbacks for this event.' : 'No feedbacks for this event.'}
+					</p>
 				) : (
 					<div className="space-y-3">
-						{getSortedFeedbacks().map((feedback) => {
+						{getNonFavoriteFeedbacks().map((feedback) => {
 							const Icon = getFeedbackIcon(feedback.type);
 							const typeLabel = getFeedbackTypeLabel(feedback.type);
 							const playerName = getPlayerName(feedback);
@@ -720,10 +751,10 @@ const formatDateLabel = (dateObj: Date | null, datePrecision: string): string =>
 											)}
 											
 											{/* Comment - displayed if it exists */}
-											{feedback.comment && (
+											{feedback.text && (
 												<div className="text-sm mt-1">
 													<span className="text-muted-foreground">Comment: </span>
-													{feedback.comment}
+													{feedback.text}
 												</div>
 											)}
 										</div>
