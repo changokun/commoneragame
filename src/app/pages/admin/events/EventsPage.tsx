@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
-import { Loader2 } from "lucide-react";
-import { Event } from "../../../types";
+import { Loader2, Heart, Flag, MessageSquare } from "lucide-react";
+import { Event, Feedback } from "../../../types";
 import { formatEventDateForDisplay } from "../../../utils";
 
 
@@ -12,14 +12,90 @@ export function EventsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ==========================================================================
+  // FEEDBACK PILLS - Display unresolved feedback counts by type
+  // ==========================================================================
+
+  /**
+   * Color mapping for feedback types
+   * Matches the color scheme used in feedback action buttons
+   */
+  const feedbackColors: Record<string, { text: string; bg: string; fill: string }> = {
+    favorite: { text: 'text-red-500', bg: 'bg-red-500/10', fill: 'fill-red-500' },
+    flag: { text: 'text-amber-500', bg: 'bg-amber-500/10', fill: 'fill-amber-500' },
+    comment: { text: 'text-blue-500', bg: 'bg-blue-500/10', fill: 'fill-blue-500' },
+  };
+
+  /**
+   * Get the appropriate icon component for a feedback type
+   */
+  const getFeedbackIcon = (type: string) => {
+    switch (type) {
+      case 'favorite': return Heart;
+      case 'flag': return Flag;
+      case 'comment': return MessageSquare;
+      default: return MessageSquare;
+    }
+  };
+
+  /**
+   * Get counts of unresolved feedbacks grouped by type for a single event
+   * Filters feedbacks where isResolved is false, then groups by type
+   * Returns an object with type as key and count as value
+   */
+  const getUnresolvedFeedbackCounts = useCallback((event: Event) => {
+    const counts: Record<string, number> = {};
+    
+    if (!event.feedbacks) return counts;
+    
+    // Filter unresolved feedbacks and count by type
+    event.feedbacks
+      .filter((f: Feedback) => !f.isResolved)
+      .forEach((f: Feedback) => {
+        counts[f.type] = (counts[f.type] || 0) + 1;
+      });
+    
+    return counts;
+  }, []);
+
+  /**
+   * Render feedback pills for unresolved feedbacks for a single event
+   * Shows icon + count for each feedback type with unresolved items
+   */
+  const renderFeedbackPills = (event: Event) => {
+    const counts = getUnresolvedFeedbackCounts(event);
+    const types = Object.keys(counts);
+    
+    if (types.length === 0) return null;
+    
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {types.map(type => {
+          const Icon = getFeedbackIcon(type);
+          const colors = feedbackColors[type] || feedbackColors.comment;
+          return (
+            <span 
+              key={type}
+              className={`flex items-center gap-1 text-xs ${colors.bg} ${colors.text} px-2 py-0.5 rounded-full whitespace-nowrap`}
+            >
+              <Icon className={`w-3 h-3 ${colors.fill}`} />
+              <span>{counts[type]}</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   useEffect(() => {
     const fetchAllEvents = async () => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-        const response = await fetch(`${apiUrl}/events/`);
+        const response = await fetch(`${apiUrl}/events/?includeFeedbacks=true`);
 				const events = await response.json()
         if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
         setEvents(events.events);
+				console.log('one', events.events[1])
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
         console.error('Failed to fetch events:', err);
@@ -74,6 +150,7 @@ export function EventsPage() {
                           {event.description}
                         </p>
                       )}
+                      {renderFeedbackPills(event)}
                     </div>
                   </div>
                 </Link>

@@ -83,6 +83,27 @@ export interface GameState {
 // ============================================================================
 
 /**
+ * Feedback interface: represents user feedback on an event
+ * Fetched from the API alongside event data
+ * 
+ * Note: player can be either a string ID or an object with username.
+ * Use getPlayerName() helper to safely extract the display name.
+ */
+export interface Feedback {
+  _id: string;
+  event: string;         // Event ID this feedback belongs to
+  player: string | { _id: string; username?: string }; // Player ID or player object with username
+  playerName?: string;   // Optional direct player name field (fallback)
+  type: "favorite" | "flag" | "comment";  // Type of feedback action
+  reason?: string;       // Optional reason for flag feedback
+  comment?: string;      // Optional comment text
+  isResolved: boolean;   // Whether this feedback has been addressed
+  createdAt: string;    // ISO date string
+  updatedAt: string;    // ISO date string
+  __v: number;          // MongoDB version key
+}
+
+/**
  * Event interface: represents a historical event card in the game
  * These are fetched from the /events endpoint or cached in localStorage
  */
@@ -92,10 +113,11 @@ export interface Event {
   name?: string;          // Alternative to title
   date: string;           // ISO date string or year
   dateBCE: number;           // negative integer for a year.
-	datePrecision: "year" | "decade" | "century" | "millennium"
+	datePrecision: "minute" | "hour" | "day" | "month" | "year" | "decade" | "century" | "millennium" | "million-years" | "exact",
   description?: string;   // Detailed description of the event
   strikes?: object[];     // Array of {player IDs & the date ranges} who got this wrong
   tags?: string[];        // Array of tag IDs associated with this event
+  feedbacks?: Feedback[]; // Array of feedback objects for this event
   // Future: could add category, difficulty, imageUrl, etc.
 }
 

@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { Input } from "../../../components/ui/input";
+import { Textarea } from "../../../components/ui/textarea";
 import { Label } from "../../../components/ui/label";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
-import { ArrowLeft, Check, Loader2, X, Calendar } from "lucide-react";
-import { Event } from "../../../types";
+import { ArrowLeft, Check, Loader2, X, Calendar, Heart, Flag, MessageSquare } from "lucide-react";
+import { Event, Feedback } from "../../../types";
 import { TagPicker, DatePicker } from 'rsuite';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 
@@ -17,10 +18,16 @@ interface TagOption {
 
 // Date precision options for the dropdown
 const DATE_PRECISION_OPTIONS = [
-  { value: "year", label: "Year" },
-  { value: "decade", label: "Decade" },
-  { value: "century", label: "Century" },
-  { value: "millennium", label: "Millennium" },
+	{ value: "minute", label: "Minute" },
+	{ value: "hour", label: "Hour" },
+	{ value: "day", label: "Day" },
+	{ value: "month", label: "Month" },
+	{ value: "year", label: "Year" },
+	{ value: "decade", label: "Decade" },
+	{ value: "century", label: "Century" },
+	{ value: "millennium", label: "Millennium" },
+	{ value: "million-years", label: "Million Years" },
+	{ value: "exact", label: "Exact" }
 ];
 
 
@@ -31,14 +38,17 @@ const DATE_PRECISION_OPTIONS = [
  * This page allows editing of event fields:
  * - title
  * - description
+ * - tags
+ * - date precision
+ * - date (CE)
+ * - dateBCE
  * 
  * Features:
  * - Fetches event data from API on mount
  * - Saves field changes on blur (PATCH to /events/:id)
  * - Shows save status with ProcessIndicator
  * - Navigates back to events list
- * 
- * Future: date/dateBCE editing will be added
+ * - Displays and manages feedbacks for the event (toggle resolved state)
  */
 export function EditEventPage() {
 
@@ -96,27 +106,29 @@ export function EditEventPage() {
 				}
 				const data = await response.json();
 				console.log('response', data)
+
+				data.event.feedbacks = data.feedbacks; // the api/db treats them as separate elements, but on this side, i'm putting feedbacks as a subobject.
 				
-				// Normalize tags to array of strings (data.tags may contain objects with _id)
-				const normalizedTags = Array.isArray(data.tags)
-					? data.tags.map(tag => (typeof tag === 'string' ? tag : tag._id)).filter(Boolean)
+				// Normalize tags to array of strings (data.event.tags may contain objects with _id)
+				const normalizedTags = Array.isArray(data.event.tags)
+					? data.event.tags.map(tag => (typeof tag === 'string' ? tag : tag._id)).filter(Boolean)
 					: [];
 				
 				// Set event with normalized tags
-				setEvent({ ...data, tags: normalizedTags });
+				setEvent({ ...data.event, tags: normalizedTags });
 				
 				setOriginalValues({
-					title: data.title || '',
-					description: data.description || '',
+					title: data.event.title || '',
+					description: data.event.description || '',
 					tags: normalizedTags,
-					datePrecision: data.datePrecision || 'year',
-					date: data.date || '',
-					dateBCE: data.dateBCE || 0,
+					datePrecision: data.event.datePrecision || 'year',
+					date: data.event.date || '',
+					dateBCE: data.event.dateBCE || 0,
 				});
 				
 				// Pre-populate tagOptions with proper label/value pairs
-				if (data.tags?.length > 0) {
-					const initialOptions = data.tags.map((tag) => {
+				if (data.event.tags?.length > 0) {
+					const initialOptions = data.event.tags.map((tag) => {
 						const tagId = typeof tag === 'string' ? tag : tag._id;
 						const tagName = typeof tag === 'string' ? tag : tag.name || tagId;
 						return { value: tagId, label: tagName };
@@ -188,7 +200,7 @@ export function EditEventPage() {
 		saveField('title', e.target.value);
 	};
 
-	const handleDescriptionBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+	const handleDescriptionBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
 		saveField('description', e.target.value);
 	};
 
@@ -277,6 +289,138 @@ export function EditEventPage() {
 		saveField('tags', newTagIds);
 	};
 
+	// ==========================================================================
+	// FEEDBACK HELPER FUNCTIONS
+	// ==========================================================================
+
+	/**
+	 * Extract player name from feedback object safely
+	 * Handles multiple possible formats: player.username, playerName, or player as string
+	 * Falls back to 'Unknown' if no name can be determined
+	 */
+	const getPlayerName = (feedback: Feedback): string => {
+		// Try player object with username first
+		if (typeof feedback.player === 'object' && feedback.player?.username) {
+			return feedback.player.username;
+		}
+		// Try direct playerName field
+		if (feedback.playerName) {
+			return feedback.playerName;
+		}
+		// Try player as string ID
+		if (typeof feedback.player === 'string') {
+			return feedback.player;
+		}
+		// Fallback
+		return 'Unknown';
+	};
+
+	/**
+	 * Format ISO date string with date and time for display
+	 * Example: "Sep 4, 2026, 3:42 PM"
+	 */
+	const formatDateWithTime = (isoString: string): string => {
+		try {
+			const date = new Date(isoString);
+			return date.toLocaleString('en-US', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+			});
+		} catch {
+			// If date parsing fails, return the raw string
+			return isoString;
+		}
+	};
+
+	/**
+	 * Get user-friendly label for feedback type
+	 * Converts lowercase type strings to capitalized display names
+	 */
+	const getFeedbackTypeLabel = (type: string): string => {
+		switch (type) {
+			case 'flag': return 'Flag';
+			case 'favorite': return 'Favorite';
+			case 'comment': return 'Comment';
+			default: return type.charAt(0).toUpperCase() + type.slice(1);
+		}
+	};
+
+	/**
+	 * Get the appropriate Lucide icon for a feedback type
+	 * Returns the icon component for display
+	 */
+	const getFeedbackIcon = (type: string) => {
+		switch (type) {
+			case 'favorite': return Heart;
+			case 'flag': return Flag;
+			case 'comment': return MessageSquare;
+			default: return MessageSquare;
+		}
+	};
+
+	/**
+	 * Get sorted feedbacks for display
+	 * Sort order: unresolved first, then by player name, then by createdAt (oldest first)
+	 */
+	const getSortedFeedbacks = (): Feedback[] => {
+		if (!event?.feedbacks) return [];
+		
+		return [...event.feedbacks].sort((a, b) => {
+			// Sort by isResolved: unresolved (false) comes before resolved (true)
+			if (a.isResolved !== b.isResolved) {
+				return a.isResolved ? 1 : -1;
+			}
+			// Then by player name
+			const nameA = getPlayerName(a);
+			const nameB = getPlayerName(b);
+			if (nameA < nameB) return -1;
+			if (nameA > nameB) return 1;
+			// Then by createdAt chronologically (oldest first)
+			return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+		});
+	};
+
+	/**
+	 * Toggle the resolved state of a feedback
+	 * Sends PATCH request to /feedbacks/:id with new isResolved value
+	 * Updates local state on success
+	 */
+	const toggleFeedbackResolved = async (feedback: Feedback) => {
+		try {
+			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+			const newResolvedState = !feedback.isResolved;
+			
+			const response = await fetch(`${apiUrl}/feedbacks/${feedback._id}`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ isResolved: newResolvedState }),
+			});
+			
+			if (response.status === 404) {
+				throw new Error('Feedback not found');
+			}
+			if (!response.ok && response.status !== 204) {
+				throw new Error('Failed to update feedback');
+			}
+			
+			// Update local state: toggle the isResolved for this feedback
+			setEvent(prev => {
+				if (!prev) return prev;
+				const updatedFeedbacks = (prev.feedbacks || []).map(f =>
+					f._id === feedback._id ? { ...f, isResolved: newResolvedState } : f
+				);
+				return { ...prev, feedbacks: updatedFeedbacks };
+			});
+		} catch (err) {
+			alert('Failed to update feedback: ' + (err instanceof Error ? err.message : String(err)));
+		}
+	};
+
 
 	/**
 	 * ProcessIndicator - Shows save status at top-right of page
@@ -315,6 +459,8 @@ export function EditEventPage() {
 		return <div className="p-8">Event not found</div>;
 	}
 
+	console.log('event needed', event)
+
 	return (
 		<div className="max-w-2xl mx-auto p-2 space-y-6 relative">
 			{/* Process indicators - show if any field is not idle */}
@@ -351,13 +497,12 @@ export function EditEventPage() {
 				{/* Description Field */}
 				<div className="space-y-2">
 					<Label>Description</Label>
-					<Input
-						type="text"
+					<Textarea
 						value={event.description || ''}
 						onChange={(e) => setEvent({ ...event, description: e.target.value })}
 						onBlur={handleDescriptionBlur}
 						placeholder="Event description (optional)"
-						onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+						rows={5}
 					/>
 				</div>
 				
@@ -425,6 +570,75 @@ export function EditEventPage() {
 						</div>
 					</div>
 				</div>
+			</Card>
+
+			{/* ======================================================================== */}
+			{/* FEEDBACK SECTION - Display all feedbacks for this event */}
+			{/* ======================================================================== */}
+			<Card className="p-6 space-y-4">
+				<h2 className="text-xl font-semibold">Feedbacks</h2>
+				
+				{getSortedFeedbacks().length === 0 ? (
+					<p className="text-muted-foreground text-center py-4">No feedbacks for this event.</p>
+				) : (
+					<div className="space-y-3">
+						{getSortedFeedbacks().map((feedback) => {
+							const Icon = getFeedbackIcon(feedback.type);
+							const typeLabel = getFeedbackTypeLabel(feedback.type);
+							const playerName = getPlayerName(feedback);
+							const displayDate = formatDateWithTime(feedback.createdAt);
+							
+							return (
+								<div 
+									key={feedback._id} 
+									className={`p-4 rounded-lg border ${
+										feedback.isResolved 
+											? 'bg-muted/50 border-muted-foreground/20 opacity-60' 
+											: 'bg-background border-border'
+									}`}
+								>
+									<div className="flex justify-between items-start">
+										<div className="flex-1">
+											{/* Header row: Icon, type, player name, date */}
+											<div className="flex items-center gap-2 mb-1 flex-wrap">
+												<Icon className="w-4 h-4 text-muted-foreground" />
+												<span className="font-medium">{typeLabel}</span>
+												<span className="text-muted-foreground">from {playerName}</span>
+												<span className="text-muted-foreground text-sm">{displayDate}</span>
+											</div>
+											
+											{/* Reason - always displayed when it exists */}
+											{feedback.reason && (
+												<div className="text-sm mt-1">
+													<span className="text-muted-foreground">Reason: </span>
+													{feedback.reason}
+												</div>
+											)}
+											
+											{/* Comment - displayed if it exists */}
+											{feedback.comment && (
+												<div className="text-sm mt-1">
+													<span className="text-muted-foreground">Comment: </span>
+													{feedback.comment}
+												</div>
+											)}
+										</div>
+										
+										{/* Resolved toggle button */}
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => toggleFeedbackResolved(feedback)}
+											className="ml-4 whitespace-nowrap shrink-0"
+										>
+											{feedback.isResolved ? 'Mark Unresolved' : 'Mark Resolved'}
+										</Button>
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				)}
 			</Card>
 		</div>
 	);
