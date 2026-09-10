@@ -7,7 +7,7 @@ import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { ArrowLeft, Check, Loader2, X, Calendar, Heart, Flag, MessageSquare } from "lucide-react";
 import { Event, Feedback } from "../../../types";
-import { TagPicker, DatePicker } from 'rsuite';
+import { TagPicker, DatePicker, TimePicker } from 'rsuite';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 
 
@@ -83,9 +83,9 @@ export function EditEventPage() {
 		description: string;
 		tags: string[];
 		datePrecision: string;
-		date: string;
+		date: Date | null;  // Changed from string
 		dateBCE: number;
-	}>({ title: '', description: '', tags: [], datePrecision: 'year', date: '', dateBCE: 0 });
+	}>({ title: '', description: '', tags: [], datePrecision: 'year', date: null, dateBCE: 0 });
 
 	// State for rsuite TagPicker
 	const [tagOptions, setTagOptions] = useState<TagOption[]>([]);
@@ -104,8 +104,13 @@ export function EditEventPage() {
 				if (!response.ok) {
 					throw new Error('Event not found');
 				}
-				const data = await response.json();
-				console.log('response', data)
+				let data = await response.json();
+
+				data.event.date = data.event.date ? new Date(data.event.date) : null;
+				console.log('aha?', typeof new Date(data.event.date))
+				console.log('data.event.date', typeof data.event.date, data.event.date)
+
+				console.log('response with Date obj', data)
 
 				data.event.feedbacks = data.feedbacks; // the api/db treats them as separate elements, but on this side, i'm putting feedbacks as a subobject.
 				
@@ -181,6 +186,10 @@ export function EditEventPage() {
 			}
 			
 			// Update original values and event state on success
+			// but first, if it is the date, parse to a date obj
+			if(field === 'date' && value) {
+				value = new Date(value)
+			}
 			setOriginalValues(prev => ({ ...prev, [field]: value }));
 			setEvent(prev => ({ ...prev!, [field]: value }));
 			setSaveStatus(prev => ({ ...prev, [field]: 'success' }));
@@ -213,9 +222,7 @@ export function EditEventPage() {
 	 */
 	const handleDateChange = (newDate: Date | null) => {
 		if (newDate) {
-			// Convert Date to ISO string for storage
-			const isoDate = newDate.toISOString().split('T')[0]; // YYYY-MM-DD
-			saveField('date', isoDate);
+			saveField('date', newDate); // Store full Date with time
 		}
 	};
 
@@ -324,7 +331,7 @@ export function EditEventPage() {
 			const date = new Date(isoString);
 			return date.toLocaleString('en-US', {
 				year: 'numeric',
-				month: 'short',
+				month: 'long',
 				day: 'numeric',
 				hour: '2-digit',
 				minute: '2-digit',
@@ -334,6 +341,34 @@ export function EditEventPage() {
 			return isoString;
 		}
 	};
+
+const formatDateLabel = (dateObj: Date | null, datePrecision: string): string => {
+  if (!dateObj) return 'CE';
+
+  switch (datePrecision) {
+    case 'exact':
+    case 'minute':
+      return dateObj.toLocaleString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    case 'hour':
+      return dateObj.toLocaleString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit'
+      });
+    case 'day':
+      return dateObj.toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      });
+    case 'month':
+      return dateObj.toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long'
+      });
+    default: // year, decade, century, millennium, million-years
+      return String(dateObj.getFullYear());
+  }
+};
 
 	/**
 	 * Get user-friendly label for feedback type
@@ -481,6 +516,61 @@ export function EditEventPage() {
 			
 			{/* Form Card */}
 			<Card className="p-6 space-y-4">
+
+				{/* Date fields - BCE input and CE date picker side by side */}
+				<div className="space-y-2">
+					<Label>Date</Label>
+					<div className="flex items-center gap-4">
+						{/* BCE Date Input - left side, digits only (negative numbers) */}
+						{event.dateBCE && (
+
+							<div className="flex-1">
+							<Label className="text-sm font-normal text-muted-foreground">BCE (positive integer)</Label>
+							<Input
+								type="text"
+								value={event.dateBCE && event.dateBCE !== 0 ? String(event.dateBCE) : ''}
+								onChange={handleDateBCEChange}
+								onBlur={handleDateBCEBlur}
+								placeholder="Year BCE"
+								className="mt-1"
+								/>
+							</div>
+						)}
+						
+						{/* CE Date Picker - right side, calendar picker */}
+						<div className="flex-1">
+						<Label className="text-sm font-normal text-muted-foreground">
+							{event.date ? formatDateLabel(event.date, event.datePrecision) : 'CE'}
+						</Label>
+							{['hour', 'minute', 'exact'].includes(event.datePrecision) ? (
+								<div className="flex gap-2">
+									<DatePicker
+										value={event.date ? event.date : null}
+										onChange={handleDateChange}
+										format="yyyy-MM-dd"
+										className="mt-1"
+									/>
+									<TimePicker
+										value={event.date ? event.date : null}
+										onChange={handleDateChange}
+										format="HH:mm"
+										className="mt-1"
+									/>
+								</div>
+							) : (
+								<DatePicker
+									value={event.date ? event.date : null}
+									onChange={handleDateChange}
+									format="yyyy-MM-dd"
+									className="mt-1 w-full"
+									placeholder="Select CE date"
+								/>
+							)}
+						</div>
+					</div>
+				</div>
+
+
 				{/* Title Field */}
 				<div className="space-y-2">
 					<Label>Title</Label>
@@ -540,36 +630,6 @@ export function EditEventPage() {
 					</Select>
 				</div>
 				
-				{/* Date fields - BCE input and CE date picker side by side */}
-				<div className="space-y-2">
-					<Label>Date</Label>
-					<div className="flex items-center gap-4">
-						{/* BCE Date Input - left side, digits only (negative numbers) */}
-						<div className="flex-1">
-							<Label className="text-sm font-normal text-muted-foreground">BCE (positive integer)</Label>
-							<Input
-								type="text"
-								value={event.dateBCE && event.dateBCE !== 0 ? String(event.dateBCE) : ''}
-								onChange={handleDateBCEChange}
-								onBlur={handleDateBCEBlur}
-								placeholder="Year BCE"
-								className="mt-1"
-							/>
-						</div>
-						
-						{/* CE Date Picker - right side, calendar picker */}
-						<div className="flex-1">
-							<Label className="text-sm font-normal text-muted-foreground">CE</Label>
-							<DatePicker
-								value={event.date ? new Date(event.date) : null}
-								onChange={handleDateChange}
-								format="yyyy-MM-dd"
-								className="mt-1 w-full"
-								placeholder="Select CE date"
-							/>
-						</div>
-					</div>
-				</div>
 			</Card>
 
 			{/* ======================================================================== */}

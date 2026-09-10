@@ -111,7 +111,7 @@ export interface Event {
   _id: string;
   title: string;
   name?: string;          // Alternative to title
-  date: string;           // ISO date string or year
+  date: Date;
   dateBCE: number;           // negative integer for a year.
 	datePrecision: "minute" | "hour" | "day" | "month" | "year" | "decade" | "century" | "millennium" | "million-years" | "exact",
   description?: string;   // Detailed description of the event
