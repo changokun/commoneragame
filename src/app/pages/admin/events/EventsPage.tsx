@@ -5,6 +5,7 @@ import { Card } from "../../../components/ui/card";
 import { Loader2, Heart, Flag, MessageSquare } from "lucide-react";
 import { Event, Feedback } from "../../../types";
 import { formatEventDateForDisplay } from "../../../utils";
+import { adminFetch } from "../../../services/adminAuth";
 
 
 export function EventsPage() {
@@ -90,12 +91,11 @@ export function EventsPage() {
   useEffect(() => {
     const fetchAllEvents = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-        const response = await fetch(`${apiUrl}/events/?includeFeedbacks=true`);
-				const events = await response.json()
+        const response = await adminFetch('/events/?includeFeedbacks=true');
         if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-        setEvents(events.events);
-				console.log('one', events.events[1])
+        const data = await response.json();
+        setEvents(data.events);
+        console.log('one', data.events[1]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
         console.error('Failed to fetch events:', err);

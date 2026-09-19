@@ -9,6 +9,7 @@ import { ArrowLeft, Check, Loader2, X, Calendar, Heart, Flag, MessageSquare } fr
 import { Event, Feedback } from "../../../types";
 import { TagPicker, DatePicker, TimePicker } from 'rsuite';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { adminFetch } from "../../../services/adminAuth";
 
 
 interface TagOption {
@@ -116,8 +117,7 @@ export function EditEventPage() {
 	useEffect(() => {
 		const fetchEvent = async () => {
 			try {
-				const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-				const response = await fetch(`${apiUrl}/events/${id}/edit`);
+				const response = await adminFetch(`/events/${id}/edit`);
 				if (!response.ok) {
 					throw new Error('Event not found');
 				}
@@ -186,12 +186,11 @@ export function EditEventPage() {
 		setSaveStatus(prev => ({ ...prev, [field]: 'saving' }));
 		
 		try {
-			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const payload: Record<string, any> = {
 				[field]: value
 			};
 			
-			const response = await fetch(`${apiUrl}/events/${id}`, {
+			const response = await adminFetch(`/events/${id}`, {
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',
@@ -284,8 +283,7 @@ export function EditEventPage() {
 		if (searchQuery.length < 3) return;
 		
 		try {
-			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-			const response = await fetch(`${apiUrl}/tags?q=${encodeURIComponent(searchQuery)}`);
+			const response = await adminFetch(`/tags?q=${encodeURIComponent(searchQuery)}`);
 			if (response.ok) {
 				const tags = await response.json();
 				const searchOptions = tags.map((tag: { _id: string; name: string }) => ({
@@ -467,10 +465,9 @@ export function EditEventPage() {
 	 */
 	const toggleFeedbackResolved = async (feedback: Feedback) => {
 		try {
-			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const newResolvedState = !feedback.isResolved;
 			
-			const response = await fetch(`${apiUrl}/feedbacks/${feedback._id}`, {
+			const response = await adminFetch(`/feedbacks/${feedback._id}`, {
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',

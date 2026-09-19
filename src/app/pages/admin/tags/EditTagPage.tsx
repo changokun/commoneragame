@@ -7,6 +7,7 @@ import { Button } from "../../../components/ui/button";
 import { ArrowLeft, Check, Loader2, X } from "lucide-react";
 import { TagPicker } from 'rsuite';
 // import 'rsuite/dist/rsuite.min.css';
+import { adminFetch } from "../../../services/adminAuth";
 
 
 
@@ -57,8 +58,7 @@ export function EditTagPage() {
 	useEffect(() => {
 		const fetchTag = async () => {
 			try {
-				const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-				const response = await fetch(`${apiUrl}/tags/${id}?includeParent=1`);
+				const response = await adminFetch(`/tags/${id}?includeParent=1`);
 				if (!response.ok) {
 					throw new Error('Tag not found');
 				}
@@ -105,7 +105,7 @@ export function EditTagPage() {
 				payload[field] = value;
 			}
 			
-			const response = await fetch(`${apiUrl}/tags/${id}`, {
+			const response = await adminFetch(`/tags/${id}`, {
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',
@@ -173,8 +173,7 @@ export function EditTagPage() {
 		if (searchQuery.length < 3) return;
 		
 		try {
-			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-			const response = await fetch(`${apiUrl}/tags?q=${encodeURIComponent(searchQuery)}`);
+			const response = await adminFetch(`/tags?q=${encodeURIComponent(searchQuery)}`);
 			if (response.ok) {
 				const tags: Tag[] = await response.json();
 				console.log(`queried these tags with ${searchQuery}`, tags)

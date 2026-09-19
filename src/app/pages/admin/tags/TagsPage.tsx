@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Loader2 } from "lucide-react";
+import { adminFetch } from "../../../services/adminAuth";
 
 interface Tag {
   _id: string;
@@ -19,8 +20,7 @@ export function TagsPage() {
   useEffect(() => {
     const fetchAllTags = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-        const response = await fetch(`${apiUrl}/tags/all`);
+        const response = await adminFetch('/tags/all');
         if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
         setTags(await response.json());
       } catch (err) {
