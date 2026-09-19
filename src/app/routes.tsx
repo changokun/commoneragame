@@ -1,9 +1,11 @@
 import { createBrowserRouter } from "react-router";
 import { RootLayout } from "./components/RootLayout";
+import { AdminAuthWrapper } from "./components/AdminAuthWrapper";
 import { HomePage } from "./pages/HomePage";
 import { NewGamePage } from "./pages/NewGamePage";
 import { JoinGamePage } from "./pages/JoinGamePage";
 import { AdminPage } from "./pages/admin/AdminPage";
+import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
 import { EditTagPage } from "./pages/admin/tags/EditTagPage";
 import { TagsPage } from "./pages/admin/tags/TagsPage";
 import { EventsPage } from "./pages/admin/events/EventsPage";
@@ -24,14 +26,47 @@ export const router = createBrowserRouter([
 		],
 	},
 	{
+		path: "/admin/login",
+		element: <AdminLoginPage />,
+	},
+	{
 		path: "/admin",
-		element: <AdminPage />,
+		element: (
+			<AdminAuthWrapper>
+				<AdminPage />
+			</AdminAuthWrapper>
+		),
 	},
 	{
 		path: "/admin/tags/edit/:id",
-		element: <EditTagPage />,
+		element: (
+			<AdminAuthWrapper>
+				<EditTagPage />
+			</AdminAuthWrapper>
+		),
 	},
-	{ path: "/admin/tags", element: <TagsPage /> },
-	{ path: "/admin/events", element: <EventsPage /> },
-	{ path: "/admin/events/edit/:id", element: <EditEventPage /> }
+	{
+		path: "/admin/tags",
+		element: (
+			<AdminAuthWrapper>
+				<TagsPage />
+			</AdminAuthWrapper>
+		),
+	},
+	{
+		path: "/admin/events",
+		element: (
+			<AdminAuthWrapper>
+				<EventsPage />
+			</AdminAuthWrapper>
+		),
+	},
+	{
+		path: "/admin/events/edit/:id",
+		element: (
+			<AdminAuthWrapper>
+				<EditEventPage />
+			</AdminAuthWrapper>
+		),
+	}
 ]);
