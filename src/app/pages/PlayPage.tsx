@@ -350,6 +350,7 @@ export function PlayPage() {
 		try {
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const idsParam = missingIds.join(",");
+			// disabled in api?
 			console.log('LOADING ONE OR MORE EVENTS FROM THE API', idsParam);
 			const response = await fetch(`${apiUrl}/events?ids=${idsParam}`);
 			const data = await response.json();
