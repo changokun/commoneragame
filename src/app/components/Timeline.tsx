@@ -132,6 +132,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
       // If there are missing IDs, fetch them in one batch
       if (missingIds.length > 0) {
         try {
+					// i think this was disabled in the api... because not sure if used.
           const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
           const idsParam = missingIds.join(",");
           const response = await fetch(`${apiUrl}/events?ids=${idsParam}`);
