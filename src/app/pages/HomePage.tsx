@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { Button } from "../components/ui/button";
 import { PlusCircle, Users } from "lucide-react";
+import { ResumeGameButton } from "../components/ResumeGameButton";
 
 export function HomePage() {
   return (
@@ -13,6 +14,8 @@ export function HomePage() {
         <p className="text-lg md:text-xl leading-relaxed text-muted-foreground max-w-2xl mx-auto">
           Test your knowledge of history! Can you put these events in order?
         </p>
+
+				<ResumeGameButton />
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
           <Link to="/new-game">

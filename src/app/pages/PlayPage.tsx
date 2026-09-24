@@ -1,7 +1,17 @@
 import { useParams, useNavigate, Link } from "react-router";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Settings, PlusCircle, Users } from "lucide-react";
+import { Settings, PlusCircle, Users, Flag } from "lucide-react";
 import { Button } from "../components/ui/button";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { Card } from "../components/ui/card";
 import { Timeline } from "../components/Timeline";
 import { StrikePlaceholderCard } from "../components/StrikePlaceholderCard";
@@ -59,6 +69,7 @@ export function PlayPage() {
 	const [showEndScreen, setShowEndScreen] = useState(true);
 	const [errorModal, setErrorModal] = useState<ErrorModalConfig | null>(null);
 	const [allExpanded, setAllExpanded] = useState<boolean | null>(true);
+	const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
 	
 
 	
@@ -697,6 +708,74 @@ export function PlayPage() {
 		}
 	};
 
+	/**
+	 * Surrender the game - immediately puts the game in defeat state
+	 * This will end the game with a loss for the current player
+	 */
+	const handleSurrender = async () => {
+		// Show confirmation dialog instead of surrendering immediately
+		setShowSurrenderConfirm(true);
+	};
+
+	/**
+	 * Confirmed surrender - actually executes the surrender after user confirmation
+	 */
+	const confirmSurrender = async () => {
+		setShowSurrenderConfirm(false);
+		if (!gameId || !userSession || isSpectator || isGameOver) return;
+
+		try {
+			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+			
+			// Call API to surrender - this should end the game in defeat
+			const response = await fetch(`${apiUrl}/games/${gameId}/surrender`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${getToken()}`,
+				},
+				body: JSON.stringify({ playerId: userSession._id })
+			});
+
+			if (response.ok) {
+				// Update local state to show game is over in defeat
+				const data = await response.json();
+				
+				// Update game state to mark it as over
+				setGameState({
+					...gameState,
+					state: {
+						...gameState.state,
+						state: 'over',
+						victor: null, // No victor means defeat
+					}
+				});
+			} else {
+				console.error('Failed to surrender:', response);
+				// Still mark as over locally for immediate feedback
+				setGameState({
+					...gameState,
+					state: {
+						...gameState.state,
+						state: 'over',
+						victor: null,
+					}
+				});
+			}
+		} catch (error) {
+			console.error('Error surrendering:', error);
+			// Mark as over locally even on error
+			setGameState({
+				...gameState,
+				state: {
+					...gameState.state,
+					state: 'over',
+					victor: null,
+				}
+			});
+		}
+	};
+
 	let strikeCountdown = gameState.settings.strikeLimit - getStrikeCount();
 
 	// console.log('drawnCard before render', drawnCard)
@@ -771,7 +850,38 @@ export function PlayPage() {
 								</span>
 							))
 						)}
-						<Button onClick={handleToggleAll}>{allExpanded ? 'Collapse All' : 'Expand All'}</Button>
+						<Button variant="secondary" className="hover:bg-accent/50 cursor-pointer" onClick={handleToggleAll}>{allExpanded ? 'Collapse All' : 'Expand All'}</Button>
+						
+						<Button 
+							variant="secondary" 
+							onClick={() => setShowSurrenderConfirm(true)}
+							disabled={isSpectator || isGameOver}
+							className="gap-1 hover:bg-destructive/90 cursor-pointer"
+						>
+							<Flag className="h-3 w-3" />
+							Surrender
+						</Button>
+
+							{/* Surrender Confirmation Dialog */}
+							<AlertDialog open={showSurrenderConfirm} onOpenChange={setShowSurrenderConfirm}>
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>Are you sure you want to surrender?</AlertDialogTitle>
+										<AlertDialogDescription>
+											This will immediately end the game in defeat. You cannot undo this action.
+										</AlertDialogDescription>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction onClick={confirmSurrender}>
+											Surrender
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+
+
+						
 					</div>
 				</div>
 			</header>
