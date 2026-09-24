@@ -12,7 +12,7 @@ export function RootLayout() {
       <div className={`${isPlayPage && 'h-screen'} overflow-hidden flex flex-col bg-background text-foreground`}>
         {!isPlayPage && (
           <header className="w-full px-6 py-4 flex-shrink-0">
-            <h1 className="text-3xl font-bold text-muted-foreground">Common Era</h1>
+            <h1 className="text-3xl font-bold text-muted-foreground"><a href="/">Common Era</a></h1>
           </header>
         )}
 

@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 export function Footer() {
   return (
     <footer className="w-full border-t border-border mt-auto">
@@ -7,30 +9,30 @@ export function Footer() {
             © 2026 Common Era. All rights reserved.
           </p>
           <nav className="flex gap-6">
-            <a
-              href="/about"
+            <Link
+              to="/about"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               About
-            </a>
-            <a
-              href="/privacy"
+            </Link>
+            <Link
+              to="/privacy"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Privacy
-            </a>
-            <a
-              href="/terms"
+            </Link>
+            <Link
+              to="/terms"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Terms
-            </a>
-            <a
-              href="/contact"
+            </Link>
+            <Link
+              to="/contact"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Contact
-            </a>
+            </Link>
           </nav>
         </div>
       </div>
