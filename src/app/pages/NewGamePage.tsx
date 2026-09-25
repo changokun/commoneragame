@@ -12,6 +12,8 @@ import { Badge } from "../components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../components/ui/tooltip";
 import { ensureAuth, getToken } from "../services/auth";
 import { ResumeGameButton } from "../components/ResumeGameButton";
+import { Preset } from "../types";
+
 
 type GameMode = "competitive" | "collaborative" | null;
 type DeviceMode = "single" | "multiple" | null;
@@ -35,45 +37,6 @@ interface FormData {
 	difficultyRange: [number, number];
 }
 
-interface Preset {
-	name: string;
-	// maxEvents: number;
-	strikeLimit: number;
-	beginningFrom: string;
-	upThrough: string;
-	filterTags: string[];
-	topics: string[];
-}
-
-const PRESETS: Preset[] = [
-	{
-		name: "Roman Art History",
-		// maxEvents: 30,
-		strikeLimit: 3,
-		beginningFrom: "100 BCE",
-		upThrough: "400 CE",
-		filterTags: [],
-		topics: ["Rome", "Art", "Architecture"],
-	},
-	{
-		name: "World Wars",
-		// maxEvents: 50,
-		strikeLimit: 5,
-		beginningFrom: "1914",
-		upThrough: "1945",
-		filterTags: [],
-		topics: ["WWI", "WWII"],
-	},
-	{
-		name: "Ancient History",
-		// maxEvents: 40,
-		strikeLimit: 3,
-		beginningFrom: "4000 BCE",
-		upThrough: "500 CE",
-		filterTags: [],
-		topics: ["Rome"],
-	},
-];
 
 // Time suffix options for composite date inputs
 const TIME_SUFFIX_OPTIONS = [
@@ -159,8 +122,8 @@ export function NewGamePage() {
 		// maxEvents: 30,
 		strikeLimit: 3,
 		targetScore: 10,
-		beginningFrom: "4000 BCE",
-		beginningFromNumber: "4000",
+		beginningFrom: "2000 BCE",
+		beginningFromNumber: "2000",
 		beginningFromSuffix: "BCE",
 		upThrough: `${new Date().getFullYear()} CE`,
 		upThroughNumber: String(new Date().getFullYear()),
@@ -168,25 +131,44 @@ export function NewGamePage() {
 		filterTags: [],
 		difficultyRange: [2, 3],
 	});
+
+	// find the default preset, in the future, basically choose the continent that the user appears to be from.
+	const defaultPresetName = "Europe"; // presets.find(p => p.isDefault)?.name;
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [selectedPreset, setSelectedPreset] = useState<string>(defaultPresetName);
 	const [error, setError] = useState<string | null>(null);
 	const [availableEvents, setAvailableEvents] = useState<number | null>(null);
 	const [isFetchingEvents, setIsFetchingEvents] = useState(false);
 	const [tags, setTags] = useState<object | null>(null);
+
+	const [presets, setPresets] = useState<Preset[]>([]);
+
+	useEffect(() => {
+		const fetchPresets = async () => {
+			try {
+				const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+				const response = await fetch(`${apiUrl}/presets`);
+				const data = await response.json();
+				console.log('----api call datadatadata', data)
+				data.map(preset => {preset.upThrough = preset.upThrough || String(new Date().getFullYear())})
+				console.log('----api call datadatadata', data)
+				setPresets(data);
+			} catch (err) {
+				console.error('Failed to fetch presets:', err);
+			}
+		};
+		fetchPresets();
+	}, []);
 
 	// Combine number and suffix into full date strings for API submission
 	// This useEffect automatically updates beginningFrom and upThrough whenever
 	// their number or suffix components change
 	useEffect(() => {
 		// Combine beginningFrom number and suffix
-		const newBeginningFrom = formData.beginningFromNumber && formData.beginningFromSuffix
-			? `${formData.beginningFromNumber} ${formData.beginningFromSuffix}`.trim()
-			: formData.beginningFromNumber || formData.beginningFromSuffix || "";
+		const newBeginningFrom = `${formData.beginningFromNumber} ${formData.beginningFromSuffix}`.trim()
 
 		// Combine upThrough number and suffix
-		const newUpThrough = formData.upThroughNumber && formData.upThroughSuffix
-			? `${formData.upThroughNumber} ${formData.upThroughSuffix}`.trim()
-			: formData.upThroughNumber || formData.upThroughSuffix || "";
+		const newUpThrough = `${formData.upThroughNumber} ${formData.upThroughSuffix}`.trim()
 
 		// Only update if the combined values have changed
 		if (newBeginningFrom !== formData.beginningFrom || newUpThrough !== formData.upThrough) {
@@ -213,7 +195,7 @@ export function NewGamePage() {
 				// Fetch top-level tags
 				const response = await fetch(`${apiUrl}/tags`);
 				const data = await response.json();
-				console.log('API tags data:', data);
+				// console.log('API tags data:', data);
 
 				// Fetch children for each tag in parallel
 				const tagsWithChildren = await Promise.all(
@@ -224,7 +206,7 @@ export function NewGamePage() {
 					})
 				);
 
-				console.log('Tags with children:', tagsWithChildren);
+				// console.log('Tags with children:', tagsWithChildren);
 				setTags(tagsWithChildren);
 			} catch (err) {
 				console.error('Failed to fetch tags:', err);
@@ -272,35 +254,26 @@ export function NewGamePage() {
 	};
 
 	const handlePresetSelect = (presetName: string) => {
-		const preset = PRESETS.find((p) => p.name === presetName);
+		if(presetName === 'Custom') {
+			setSelectedPreset(presetName)
+			console.log('going custom')
+			return;
+		}
+		const preset = presets.find((p) => p.name === presetName);
 		if (preset) {
-			// Parse date strings into number and suffix parts
-			// Handles formats like "4000 BCE" (with space) or "1914" (without space)
-			const parseDate = (dateStr: string) => {
-				const match = dateStr.match(/^(\d+)\s+(.+)$/);
-				if (match) {
-					return { number: match[1], suffix: match[2] };
-				}
-				// If no space found, assume it's a year and default to CE
-				// This handles cases like "1914" or "2026"
-				return { number: dateStr, suffix: "CE" };
-			};
-
-			const beginningParsed = parseDate(preset.beginningFrom);
-			const upThroughParsed = parseDate(preset.upThrough);
-
+			setSelectedPreset(presetName)
 			setFormData({
 				...formData,
 				// maxEvents: preset.maxEvents,
-				strikeLimit: preset.strikeLimit,
-				beginningFrom: preset.beginningFrom,
-				beginningFromNumber: beginningParsed.number,
-				beginningFromSuffix: beginningParsed.suffix,
-				upThrough: preset.upThrough,
-				upThroughNumber: upThroughParsed.number,
-				upThroughSuffix: upThroughParsed.suffix,
-				filterTags: preset.filterTags
+				// strikeLimit: preset.strikeLimit,
+				beginningFromNumber: parseInt(preset.beginningFrom).toString(),
+				beginningFromSuffix: preset.beginningFrom.replace(/[^abcde]+/ig, ''),
+				filterTags: preset.filterTags,
+				upThroughNumber: parseInt(preset.upThrough).toString(),
+				upThroughSuffix: preset.upThrough.replace(/[^abcde]+/ig, '')
 			});
+		} else {
+			console.error('I don’t know a preset named ' + preset)
 		}
 	};
 
@@ -435,6 +408,10 @@ export function NewGamePage() {
 					formData.playerNames.filter(name => name.trim()).length >= 2)));
 
 	const difficultyLabel = formData.difficultyRange[0] === formData.difficultyRange[1] ? DIFFICULTY_LABELS[formData.difficultyRange[0]] : `${DIFFICULTY_LABELS[formData.difficultyRange[0]]} to ${DIFFICULTY_LABELS[formData.difficultyRange[1]]}`
+
+
+					console.log('formDataformDataformDataformData', formData.filterTags)
+					console.log('tagstagstgas', tags)
 
 	return (
 		<TooltipProvider>
@@ -606,24 +583,6 @@ export function NewGamePage() {
 								</p>
 							</div>
 
-							{/* Preset Selector
-            <div className="space-y-2">
-              <Label>Quick Presets</Label>
-              <Select onValueChange={handlePresetSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a preset (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRESETS.map((preset) => (
-                    <SelectItem key={preset.name} value={preset.name}>
-                      {preset.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-						*/}
-
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 								{/* Target Score Slider - Play until score is reached */}
 								<div className="space-y-2">
@@ -735,77 +694,110 @@ export function NewGamePage() {
 									</Select>
 								</div>
 
-								{/* Beginning From - Composite input with number and suffix */}
+									
+								{/* Presets Dropdown */}
 								<div className="space-y-2">
-									<Label>Beginning from</Label>
-									<CompositeDateInput
-										numberValue={formData.beginningFromNumber || ""}
-										suffixValue={formData.beginningFromSuffix || ""}
-										onNumberChange={(value) =>
-											setFormData({ ...formData, beginningFromNumber: value })
-										}
-										onSuffixChange={(value) =>
-											setFormData({ ...formData, beginningFromSuffix: value })
-										}
-										placeholder="4000"
-									/>
+									<Label>Quick Presets</Label>
+									<Select value={selectedPreset} onValueChange={handlePresetSelect}>
+										<SelectTrigger className="w-full">
+											<SelectValue placeholder="Select a topic" />
+										</SelectTrigger>
+										<SelectContent>
+											{presets.map((preset) => (
+												<SelectItem key={preset.name} value={preset.name}>
+													{preset.name}
+												</SelectItem>
+											))}
+											<SelectItem key="custom" value="Custom">
+												Custom
+											</SelectItem>
+										</SelectContent>
+									</Select>
 								</div>
 
-								{/* Up Through - Composite input with number and suffix */}
-								<div className="space-y-2">
-									<Label>Up through</Label>
-									<CompositeDateInput
-										numberValue={formData.upThroughNumber || ""}
-										suffixValue={formData.upThroughSuffix || ""}
-										onNumberChange={(value) =>
-											setFormData({ ...formData, upThroughNumber: value })
-										}
-										onSuffixChange={(value) =>
-											setFormData({ ...formData, upThroughSuffix: value })
-										}
-										placeholder="1254"
-									/>
-								</div>
-							</div>
-
-							{/* Tag Filters - Dynamic rendering from API */}
-							{tags && tags.map((tag) => (
-								<div key={tag._id} className="space-y-2">
-									<Label>{tag.name}</Label>
-									<div className="flex flex-wrap gap-2">
-										{tag.children?.map((childTag) => (
-											<Badge
-												key={childTag._id}
-												variant={
-													formData.filterTags.includes(childTag._id)
-														? "default"
-														: "outline"
+								{selectedPreset === 'Custom' && (
+									<>
+										{/* Beginning From - Composite input with number and suffix */}
+										<div className="space-y-2">
+											<Label>Beginning from</Label>
+											<CompositeDateInput
+												numberValue={formData.beginningFromNumber || ""}
+												suffixValue={formData.beginningFromSuffix || ""}
+												onNumberChange={(value) =>
+													setFormData({ ...formData, beginningFromNumber: value })
 												}
-												className="cursor-pointer"
-												onClick={() => toggleTag(childTag._id)}
-											>
-												{childTag.name}
-											</Badge>
-										))}
-									</div>
-								</div>
-							))}
+												onSuffixChange={(value) =>
+													setFormData({ ...formData, beginningFromSuffix: value })
+												}
+												placeholder="4000"
+											/>
+										</div>
 
-							{/* Available Events Info */}
-							<div className="bg-muted p-3 rounded-lg">
-								<p className="text-sm font-medium">
-									{isFetchingEvents ? (
-										"Checking available events..."
-									) : availableEvents !== null ? (
-										`Available events with these filters: ${availableEvents}`
-									) : (
-										"Enter filter criteria to see available events"
-									)}
-									{availableEvents != null && availableEvents < 9 && (
-										<span className="ml-2 text-red-800">Not enough. Try adding Topics, expanding difficulty, or the time range</span>
-									)}
-								</p>
+										{/* Up Through - Composite input with number and suffix */}
+										<div className="space-y-2">
+											<Label>Up through</Label>
+											<CompositeDateInput
+												numberValue={formData.upThroughNumber || ""}
+												suffixValue={formData.upThroughSuffix || ""}
+												onNumberChange={(value) =>
+													setFormData({ ...formData, upThroughNumber: value })
+												}
+												onSuffixChange={(value) =>
+													setFormData({ ...formData, upThroughSuffix: value })
+												}
+												placeholder="1254"
+											/>
+										</div>
+									</>
+								)}
+
+
 							</div>
+
+							{selectedPreset === 'Custom' && (
+								<>
+									{/* Tag Filters - Dynamic rendering from API */}
+									{tags && tags.map((tag) => (
+										<div key={tag._id} className="space-y-2">
+											<Label>{tag.name}</Label>
+											<div className="flex flex-wrap gap-2">
+												{tag.children?.map((childTag) => (
+													<Badge
+														key={childTag._id}
+														variant={
+															formData.filterTags.includes(childTag._id)
+																? "default"
+																: "outline"
+														}
+														className="cursor-pointer"
+														onClick={() => toggleTag(childTag._id)}
+													>
+														{childTag.name}
+													</Badge>
+												))}
+											</div>
+										</div>
+									))}
+
+									{/* Available Events Info */}
+									<div className="bg-muted p-3 rounded-lg">
+										<p className="text-sm font-medium">
+											{isFetchingEvents ? (
+												"Checking available events..."
+											) : availableEvents !== null ? (
+												`Available events with these filters: ${availableEvents}`
+											) : (
+												"Enter filter criteria to see available events"
+											)}
+											{availableEvents != null && availableEvents < 9 && (
+												<span className="ml-2 text-red-800">Not enough. Try adding Topics, expanding difficulty, or the time range</span>
+											)}
+										</p>
+									</div>
+								</>
+							)}
+
+							
 						</Card>
 					)}
 

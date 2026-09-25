@@ -142,3 +142,17 @@ export interface GameResult {
   incorrectCount: number;
   remainingEvents: number;
 }
+
+
+
+export interface Preset {
+	name: string;
+	// maxEvents: number;
+	// strikeLimit: number;
+	beginningFrom: string;
+	upThrough: string;
+	filterTags: string[];
+	isDefault?: boolean;
+	tagNames?: string[];
+	tagsLookedUpAt?: string;
+}
