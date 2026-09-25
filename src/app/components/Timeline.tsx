@@ -42,7 +42,7 @@ function PlacementOption({ spliceStartIndex, before, after, drawnCard, onPlace, 
 				size="lg"
 				className={`w-full justify-start transition-none ${drawnCard ? `opacity-100 cursor-pointer ${guideClass}` : "opacity-20 pointer-events-none text-muted-foreground/50"}`}
 				data-splicestartindex={spliceStartIndex}
-				onClick={() => onPlace({ a, b })}
+				onClick={() => onPlace({ a, b, aDisplay, bDisplay})}
 				tabIndex={drawnCard ? 0 : -1}
 			>
 				{label}

@@ -25,7 +25,6 @@ import { DrawPanelHorizontal } from "../components/DrawPanelHorizontal";
 import { DrawPanelVertical } from "../components/DrawPanelVertical";
 import { getToken, getPlayerId, ensureAuth } from "../services/auth";
 
-
 export function PlayPage() {
 	const { gameId: urlGameId } = useParams();
 	const navigate = useNavigate();
@@ -260,7 +259,15 @@ export function PlayPage() {
 		if (!gameState) {
 			return { isGameOver: false, isVictory: false, gameEndDescription: '' };
 		}
-		return _checkGameStatus();
+		const ret = _checkGameStatus();
+
+		// if the game is over, remove the game id from local storage so that we don't try to reload it later.
+		const { isGameOver } = ret;
+
+		if(isGameOver) {
+			localStorage.removeItem("CEcurrentGameId");
+		}
+		return ret;
 		// report changes to api. todo
 		// return { isGameOver: isGameOver, isVictory: isVictory };
 	}, [gameState?.state])
@@ -616,9 +623,9 @@ export function PlayPage() {
 		}
 	}
 
-	const handleIncorrectMove = async (placement: { a: string; b: string }) => {
+	const handleIncorrectMove = async (placement: { a: string; b: string, aDisplay: string, bDisplay: string }) => {
 		console.log("WRONG BOOOO", isSpectator, isUserTurn, placement, 'drawnCard in memory here on api', drawnCard)
-		const {a, b} = placement
+		const {a, b, aDisplay, bDisplay} = placement
 		// Spectators cannot make moves
 		if (isSpectator || !isUserTurn) return;
 
@@ -636,14 +643,11 @@ export function PlayPage() {
 
 		const strike:Strike = {playerId: userSession._id};
 		if(a && b) {
-			// strike.rangeKnownBad = `NOT before ${b} and NOT after ${a}`
-			strike.rangeKnownBad = `Must be before ${a} or after ${b}`
+			strike.rangeKnownBad = `Must be before ${aDisplay} or after ${bDisplay}`
 		} else if (a) {
-			// strike.rangeKnownBad = `NOT after ${a}`
-			strike.rangeKnownBad = `Must be before ${a}`
+			strike.rangeKnownBad = `Must be before ${aDisplay}`
 		} else if (b) {
-			// strike.rangeKnownBad = `NOT before ${b}`
-			strike.rangeKnownBad = `Must be after ${b}`
+			strike.rangeKnownBad = `Must be after ${bDisplay}`
 		}
 
 		if (drawnCard.strikes) {
@@ -888,7 +892,7 @@ export function PlayPage() {
 
 			{/* Mobile: Draw + Incorrect Stack Row - shown below header on small screens */}
 			{isUserTurn && (
-				<div className="lg:hidden flex-shrink-0 border-b border-border">
+				<div className={`lg:hidden flex-shrink-0 border-b border-border ${isPaused ? "opacity-50 pointer-events-none" : ""}`}>
 					<DrawPanelHorizontal
 						onDraw={handleDrawCard}
 						incorrectCards={gameState.state.incorrectCardStack}
