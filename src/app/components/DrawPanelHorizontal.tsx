@@ -59,7 +59,7 @@ export function DrawPanelHorizontal({
           className={`whitespace-nowrap h-full draw cursor-pointer ${(! drawnCard && ! drawStackEmpty && ! isGameOver) ? guideClass : ''}`}
           size="sm"
           onClick={onDraw}
-          disabled={isGameOver || drawStackEmpty}
+          disabled={ !! drawnCard || isGameOver || drawStackEmpty}
         >
           {drawStackEmpty ? "No More Events" : "Draw New Event…"}
         </Button>
@@ -69,18 +69,17 @@ export function DrawPanelHorizontal({
       {/* Incorrect Cards - inline, scrollable, fixed width */}
       {/* ====================================================================== */}
       {incorrectCards.map((card) => (
-        // <div key={card._id} className="inline-block align-top">
-          <EventCard
-            variant="incorrect"
-            event={card}
-            strikeCount={card.strikes?.length}
-            onClick={() => onRedraw(card)}
-            isNewlyPlaced={newlyIncorrectId === card._id}
-            allExpanded={allExpanded}
-            onExpandChange={onExpandChange}
-            className="w-64"
-          />
-        // </div>
+				<EventCard
+					key={card._id}
+					variant="incorrect"
+					event={card}
+					strikeCount={card.strikes?.length}
+					onClick={() => onRedraw(card)}
+					isNewlyPlaced={newlyIncorrectId === card._id}
+					allExpanded={allExpanded}
+					onExpandChange={onExpandChange}
+					className="w-64"
+				/>
       ))}
     </div>
   );
