@@ -134,16 +134,15 @@ export function NewGamePage() {
 		difficultyRange: [2, 3],
 	});
 
-	// find the default preset, in the future, basically choose the continent that the user appears to be from.
-	const defaultPresetName = "Europe"; // presets.find(p => p.isDefault)?.name;
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [selectedPreset, setSelectedPreset] = useState<string>(defaultPresetName);
+	const [selectedPreset, setSelectedPreset] = useState<string>();
 	const [error, setError] = useState<string | null>(null);
 	const [availableEvents, setAvailableEvents] = useState<number | null>(null);
 	const [isFetchingEvents, setIsFetchingEvents] = useState(false);
 	const [tags, setTags] = useState<object | null>(null);
 
 	const [presets, setPresets] = useState<Preset[]>([]);
+	const [isLoadingPresets, setIsLoadingPresets] = useState(true);
 
 	// Track how many games the user has created to simplify experience for new users
 	const [gamesCreatedCount, setGamesCreatedCount] = useState<number>(0);
@@ -162,14 +161,19 @@ export function NewGamePage() {
 	useEffect(() => {
 		const fetchPresets = async () => {
 			try {
+				setIsLoadingPresets(true)
 				const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 				const response = await fetch(`${apiUrl}/presets`);
 				const data = await response.json();
 				// if upThrough is empty, that means up thru today, so fill that in live now for best win
 				data.map(preset => {preset.upThrough = preset.upThrough || String(new Date().getFullYear())})
+				// todo look at browser language, ip location, or just ask? then make the default preset match their continent?
+				setSelectedPreset('Europe');
 				setPresets(data);
 			} catch (err) {
 				console.error('Failed to fetch presets:', err);
+			} finally {
+				setIsLoadingPresets(false)
 			}
 		};
 		fetchPresets();
@@ -488,7 +492,7 @@ export function NewGamePage() {
 						<Label className="text-lg font-semibold">Quick Start</Label>
 						<Select value={selectedPreset} onValueChange={handlePresetSelect}>
 								<SelectTrigger className="w-full">
-									<SelectValue placeholder="Select a topic" />
+									<SelectValue placeholder={isLoadingPresets ? "Loading Topics…" : "Select a topic"} />
 								</SelectTrigger>
 								<SelectContent>
 									{presets.map((preset) => (
