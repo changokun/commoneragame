@@ -16,7 +16,7 @@
 
 import { Button } from "./ui/button";
 import { EventCard } from "./EventCard";
-import { Event } from "../types";
+import { Event, GameState } from "../types";
 
 interface DrawPanelVerticalProps {
   onDraw: () => void;
@@ -29,6 +29,7 @@ interface DrawPanelVerticalProps {
   onExpandChange?: (expanded: boolean, eventId: string) => void;
 	guideClass?: string;
 	drawnCard?: Event | null;
+	gameState?: GameState;
 }
 
 export function DrawPanelVertical({
@@ -41,7 +42,8 @@ export function DrawPanelVertical({
   allExpanded,
   onExpandChange,
 	guideClass = 'guide-0',
-	drawnCard
+	drawnCard,
+	gameState
 }: DrawPanelVerticalProps) {
   // ==========================================================================
   // This component renders the draw button and incorrect cards in a vertical
@@ -85,6 +87,7 @@ export function DrawPanelVertical({
                 isNewlyPlaced={newlyIncorrectId === card._id}
                 allExpanded={allExpanded}
                 onExpandChange={onExpandChange}
+                gameState={gameState}
               />
             ))}
           </div>

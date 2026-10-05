@@ -904,6 +904,7 @@ export function PlayPage() {
 						onExpandChange={handleExpandChange}
 						guideClass={guideClass}
 						drawnCard={drawnCard}
+						gameState={gameState}
 					/>
 				</div>
 			)}
@@ -928,6 +929,7 @@ export function PlayPage() {
 								allExpanded={allExpanded}
 								onExpandChange={handleExpandChange}
 								guideClass={guideClass}
+								gameState={gameState}
 							/>
 						{/* </div> */}
 
@@ -941,6 +943,7 @@ export function PlayPage() {
 								onExpandChange={handleExpandChange}
 								isNewlyPlaced={false}
 								guideClass={guideClass}
+								gameState={gameState}
 							/>
 						)}
 					</div>
@@ -961,6 +964,7 @@ export function PlayPage() {
 									onExpandChange={handleExpandChange}
 									guideClass={guideClass}
 									drawnCard={drawnCard}
+									gameState={gameState}
 								/>
 							</div>
 					)}

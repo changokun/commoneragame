@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { EVENT_CACHE_KEY_PREFIX } from "../constants";
 import { formatEventDateForComparison, formatEventDateForDisplay } from "../utils";
 import { EventCard } from "./EventCard";
-import { Event } from "../types";
+import { Event, GameState } from "../types";
 
 // interface TimelineCardProps {
 //   event: any;
@@ -62,6 +62,7 @@ interface TimelineProps {
 	allExpanded: boolean | null;
 	onExpandChange: (expanded: boolean, id: string) => void;
 	guideClass: string;
+	gameState?: GameState;
 }
 
 interface PlacementOptionProps {
@@ -95,7 +96,7 @@ function doNotDoAnything() {
 	console.log('nuttin doin')
 }
 
-export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMove, handleIncorrectMove, newlyPlacedId, allExpanded, onExpandChange, guideClass = 'guide-5' }: TimelineProps) {
+export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMove, handleIncorrectMove, newlyPlacedId, allExpanded, onExpandChange, guideClass = 'guide-5', gameState }: TimelineProps) {
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -302,6 +303,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 				isNewlyPlaced={newlyPlacedId === event._id}
 				allExpanded={allExpanded}
 				onExpandChange={onExpandChange}
+				gameState={gameState}
 			/>
 			// </div>
 		)

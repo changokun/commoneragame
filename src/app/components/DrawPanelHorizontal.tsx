@@ -17,7 +17,7 @@
 
 import { Button } from "./ui/button";
 import { EventCard } from "./EventCard";
-import { Event } from "../types";
+import { Event, GameState } from "../types";
 
 interface DrawPanelHorizontalProps {
   onDraw: () => void;
@@ -30,6 +30,7 @@ interface DrawPanelHorizontalProps {
   onExpandChange?: (expanded: boolean, eventId: string) => void;
 	guideClass?: string;
 	drawnCard?: Event | null;
+	gameState?: GameState;
 }
 
 export function DrawPanelHorizontal({
@@ -42,7 +43,8 @@ export function DrawPanelHorizontal({
   allExpanded,
   onExpandChange,
 	guideClass = 'guide-0',
-	drawnCard
+	drawnCard,
+	gameState
 }: DrawPanelHorizontalProps) {
   // ==========================================================================
   // This component renders the draw button and incorrect cards in a single
@@ -79,6 +81,7 @@ export function DrawPanelHorizontal({
 					allExpanded={allExpanded}
 					onExpandChange={onExpandChange}
 					className="w-64"
+					gameState={gameState}
 				/>
       ))}
     </div>
