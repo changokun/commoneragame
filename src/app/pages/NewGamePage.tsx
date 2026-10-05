@@ -165,9 +165,8 @@ export function NewGamePage() {
 				const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 				const response = await fetch(`${apiUrl}/presets`);
 				const data = await response.json();
-				console.log('----api call datadatadata', data)
+				// if upThrough is empty, that means up thru today, so fill that in live now for best win
 				data.map(preset => {preset.upThrough = preset.upThrough || String(new Date().getFullYear())})
-				console.log('----api call datadatadata', data)
 				setPresets(data);
 			} catch (err) {
 				console.error('Failed to fetch presets:', err);
