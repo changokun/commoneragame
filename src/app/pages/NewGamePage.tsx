@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "../components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../components/ui/tooltip";
 import { ensureAuth, getToken } from "../services/auth";
+import { createSimpleGame, incrementGamesCreatedCount } from "../services/game";
+import { GAMES_CREATED_COUNT_KEY } from "../constants";
 import { ResumeGameButton } from "../components/ResumeGameButton";
 import { Preset } from "../types";
 
@@ -143,6 +145,20 @@ export function NewGamePage() {
 
 	const [presets, setPresets] = useState<Preset[]>([]);
 
+	// Track how many games the user has created to simplify experience for new users
+	const [gamesCreatedCount, setGamesCreatedCount] = useState<number>(0);
+
+	// Controls whether new users see the full form or the simple intro
+	const [showFullForm, setShowFullForm] = useState<boolean>(false);
+
+	// Load games created count from localStorage on component mount
+	useEffect(() => {
+		const savedCount = localStorage.getItem(GAMES_CREATED_COUNT_KEY);
+		if (savedCount !== null) {
+			setGamesCreatedCount(parseInt(savedCount, 10));
+		}
+	}, []);
+
 	useEffect(() => {
 		const fetchPresets = async () => {
 			try {
@@ -254,11 +270,6 @@ export function NewGamePage() {
 	};
 
 	const handlePresetSelect = (presetName: string) => {
-		if(presetName === 'Custom') {
-			setSelectedPreset(presetName)
-			console.log('going custom')
-			return;
-		}
 		const preset = presets.find((p) => p.name === presetName);
 		if (preset) {
 			setSelectedPreset(presetName)
@@ -326,6 +337,33 @@ export function NewGamePage() {
 		formData.difficultyRange
 	]);
 
+	/**
+	 * startSimpleGame - Creates a new game with beginner-friendly default settings
+	 * Uses the game service to handle the API call, then updates local state and navigates
+	 * This provides the "Show me how to play" quick start option for new users
+	 */
+	const startSimpleGame = async () => {
+		setIsSubmitting(true);
+		setError(null);
+
+		try {
+			// Use the game service to create a simple game with default settings
+			const data = await createSimpleGame();
+
+			// Store game ID in localStorage
+			localStorage.setItem("CEcurrentGameId", data._id);
+
+			// Increment and store games created count
+			const newCount = incrementGamesCreatedCount();
+			setGamesCreatedCount(newCount);
+
+			navigate(`/play/${data._id}`);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Server is not available. Please try again later.");
+			setIsSubmitting(false);
+		}
+	};
+
 	const handleSubmit = async () => {
 		if (!formData.gameMode || !formData.playerType) {
 			setError("Please complete all questions");
@@ -391,6 +429,14 @@ export function NewGamePage() {
 
 			// Store game ID in localStorage
 			localStorage.setItem("CEcurrentGameId", data._id);
+
+			// Increment games created counter after successful game creation
+			// This tracks user experience to simplify UI for new users
+			const currentCount = parseInt(localStorage.getItem(GAMES_CREATED_COUNT_KEY) || "0", 10);
+			const newCount = currentCount + 1;
+			setGamesCreatedCount(newCount);
+			localStorage.setItem(GAMES_CREATED_COUNT_KEY, newCount.toString());
+
 			navigate(`/play/${data._id}`);
 		} catch (err) {
 			setError("Server is not available. Please try again later.");
@@ -419,413 +465,420 @@ export function NewGamePage() {
 
 				<div className="space-y-2">
 					<h1 className="text-3xl font-bold">Create New Game</h1>
-					<p className="text-muted-foreground">
-						Answer the questions below to set up your&nbsp;game
-					</p>
 				</div>
+
+				{/* Show me how to play button - always visible */}
+				<Button onClick={startSimpleGame} size="lg" disabled={isSubmitting} className="w-full sm:w-auto">
+					{isSubmitting ? (
+						<>
+							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							Starting...
+						</>
+					) : (
+						"Show me how to play"
+					)}
+				</Button>
 
 				{/* Resume Game Button - appears if user has a game in progress */}
 				<ResumeGameButton />
 
-				<div className="space-y-6">
-					{false && (
-						<Card className="p-6 space-y-4">
-							<h2 className="text-xl font-semibold">
-								Would you like to play competitively or&nbsp;collaboratively?
-							</h2>
+				{/* Quick start section with preset selector */}
+				<Card className="p-6 space-y-4">
 
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-								<button
-									onClick={() => handleGameModeSelect("competitive")}
-									className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.gameMode === "competitive"
-											? "border-primary bg-primary/5"
-											: "border-border"
-										}`}
-								>
-									<h3 className="font-semibold text-lg mb-2">Play to Win</h3>
-									<p className="text-sm text-muted-foreground">
-										First player to complete their timeline&nbsp;wins
-									</p>
-								</button>
-
-								<button
-									onClick={() => handleGameModeSelect("collaborative")}
-									className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.gameMode === "collaborative"
-											? "border-primary bg-primary/5"
-											: "border-border"
-										}`}
-								>
-									<h3 className="font-semibold text-lg mb-2">Play to Build</h3>
-									<p className="text-sm text-muted-foreground">
-										Work together with others to build a single&nbsp;timeline
-									</p>
-								</button>
-							</div>
-						</Card>
-					)}
-
-					{false && formData.gameMode && (
-						<Card className="p-6 space-y-4">
-							<h2 className="text-xl font-semibold">Who’s Playing?</h2>
-
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-								<button
-									onClick={() => handlePlayerTypeSelect("justMe")}
-									className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.playerType === "justMe"
-											? "border-primary bg-primary/5"
-											: "border-border"
-										}`}
-								>
-									<h3 className="font-semibold text-lg mb-2">Just Me</h3>
-									<p className="text-sm text-muted-foreground">
-										Play by yourself
-									</p>
-								</button>
-
-								<button
-									onClick={() => handlePlayerTypeSelect("multiple")}
-									className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.playerType === "multiple"
-											? "border-primary bg-primary/5"
-											: "border-border"
-										}`}
-								>
-									<h3 className="font-semibold text-lg mb-2">Multiple Players</h3>
-									<p className="text-sm text-muted-foreground">
-										Playing with others
-									</p>
-								</button>
-							</div>
-						</Card>
-					)}
-
-					{false && formData.gameMode && formData.playerType === "multiple" && (
-						<Card className="p-6 space-y-4">
-							<h2 className="text-xl font-semibold">
-								Do you want to play on only this device or have other players join on their own&nbsp;devices?
-							</h2>
-
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-								<button
-									onClick={() => handleDeviceModeSelect("single")}
-									className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.deviceMode === "single"
-											? "border-primary bg-primary/5"
-											: "border-border"
-										}`}
-								>
-									<h3 className="font-semibold text-lg mb-2">Only this Device</h3>
-									<p className="text-sm text-muted-foreground">
-										All players will share this screen and take&nbsp;turns
-									</p>
-								</button>
-
-								<button
-									onClick={() => handleDeviceModeSelect("multiple")}
-									className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.deviceMode === "multiple"
-											? "border-primary bg-primary/5"
-											: "border-border"
-										}`}
-								>
-									<h3 className="font-semibold text-lg mb-2">They got their own devices</h3>
-									<p className="text-sm text-muted-foreground">
-										Players will join from their own&nbsp;devices
-									</p>
-								</button>
-							</div>
-						</Card>
-					)}
-
-					{false && formData.gameMode && formData.playerType === "multiple" && formData.deviceMode === "single" && (
-						<Card className="p-6 space-y-4">
-							<h2 className="text-xl font-semibold">Player Names</h2>
-							<p className="text-sm text-muted-foreground">
-								Enter player or team names (2-20&nbsp;players)
-							</p>
-
-							<div className="space-y-2">
-								{formData.playerNames.map((name, index) => (
-									<div key={index} className="flex gap-2">
-										<Input
-											type="text"
-											placeholder={`Player ${index + 1}`}
-											value={name}
-											onChange={(e) => handlePlayerNameChange(index, e.target.value)}
-											className="flex-1"
-											maxLength={50}
-										/>
-										{formData.playerNames.length > 1 && (
-											<Button
-												type="button"
-												variant="ghost"
-												size="icon"
-												onClick={() => handleRemovePlayer(index)}
-												className="shrink-0"
-											>
-												<X className="h-4 w-4" />
-											</Button>
-										)}
-									</div>
-								))}
-								{formData.playerNames.length >= 20 && (
-									<p className="text-sm text-muted-foreground">
-										Maximum 20 players reached
-									</p>
-								)}
-							</div>
-						</Card>
-					)}
-
-					{formData.playerType && (
-						<Card className="p-6 space-y-6">
-							<div className="space-y-2">
-								<h2 className="text-xl font-semibold">What history should we cover?</h2>
-								<p className="text-sm text-muted-foreground">
-									Configure the historical scope and&nbsp;difficulty
-								</p>
-							</div>
-
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-								{/* Target Score Slider - Play until score is reached */}
-								<div className="space-y-2">
-									<Label className="flex items-center gap-1">
-										Play until {formData.targetScore} events in a timeline
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-											</TooltipTrigger>
-											<TooltipContent>
-												The winner will be the first player to reach a timeline with {formData.targetScore} events.
-											</TooltipContent>
-										</Tooltip>
-									</Label>
-									<Slider
-										min={5}
-										max={25}
-										step={5}
-										value={[formData.targetScore]}
-										onValueChange={(value) =>
-											setFormData({ ...formData, targetScore: value[0] })
-										}
-									/>
-								</div>
-
-								{/* Difficulty Range Slider */}
-								<div className="space-y-2">
-									<Label className="flex items-center gap-1">
-										Event Difficulty: {difficultyLabel}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-											</TooltipTrigger>
-											<TooltipContent>
-												Filter events by difficulty level. Only events within this range will be included.
-											</TooltipContent>
-										</Tooltip>
-									</Label>
-									<Slider
-										min={1}
-										max={5}
-										step={1}
-										value={formData.difficultyRange}
-										onValueChange={(value) =>
-											setFormData({ ...formData, difficultyRange: value as [number, number] })
-										}
-									/>
-									<div className="flex justify-between text-xs text-muted-foreground px-1">
-										{Array.from({ length: 5 }, (_, i) => (
-											<span key={i} className={formData.difficultyRange[0] <= i + 1 && i + 1 <= formData.difficultyRange[1] ? "font-bold text-primary" : ""}>
-												{DIFFICULTY_LABELS[i + 1 as keyof typeof DIFFICULTY_LABELS]}
-											</span>
-										))}
-									</div>
-								</div>
-
-								{/* Event Count Slider
-              <div className="space-y-2">
-                <Label>{formData.maxEvents} Events in the draw pile
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-										</TooltipTrigger>
-										<TooltipContent>
-											The game will end in defeat for all players if the draw pile is exhausted.
-										</TooltipContent>
-									</Tooltip>
-								</Label>
-                <Slider
-                  min={10}
-                  max={100}
-                  step={5}
-                  value={[formData.maxEvents]}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, maxEvents: value[0] })
-                  }
-                />
-              </div> */}
-
-								{/* Error Limit */}
-								<div className="space-y-2">
-									<Label>Error Limit
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-											</TooltipTrigger>
-											<TooltipContent>
-												If a player gets this many strikes they are immediately defeated.
-											</TooltipContent>
-										</Tooltip>
-									</Label>
-									<Select
-										value={formData.strikeLimit.toString()}
-										onValueChange={(value) =>
-											setFormData({ ...formData, strikeLimit: parseInt(value) })
-										}
-									>
-										<SelectTrigger>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="1">1 (Any mistake ends the game)</SelectItem>
-											<SelectItem value="2">2</SelectItem>
-											<SelectItem value="3">3</SelectItem>
-											<SelectItem value="5">5</SelectItem>
-											<SelectItem value="8">8</SelectItem>
-											<SelectItem value="13">13</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-
-									
-								{/* Presets Dropdown */}
-								<div className="space-y-2">
-									<Label>Quick Presets</Label>
-									<Select value={selectedPreset} onValueChange={handlePresetSelect}>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Select a topic" />
-										</SelectTrigger>
-										<SelectContent>
-											{presets.map((preset) => (
-												<SelectItem key={preset.name} value={preset.name}>
-													{preset.name}
-												</SelectItem>
-											))}
-											<SelectItem key="custom" value="Custom">
-												Custom
-											</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-
-								{selectedPreset === 'Custom' && (
-									<>
-										{/* Beginning From - Composite input with number and suffix */}
-										<div className="space-y-2">
-											<Label>Beginning from</Label>
-											<CompositeDateInput
-												numberValue={formData.beginningFromNumber || ""}
-												suffixValue={formData.beginningFromSuffix || ""}
-												onNumberChange={(value) =>
-													setFormData({ ...formData, beginningFromNumber: value })
-												}
-												onSuffixChange={(value) =>
-													setFormData({ ...formData, beginningFromSuffix: value })
-												}
-												placeholder="4000"
-											/>
-										</div>
-
-										{/* Up Through - Composite input with number and suffix */}
-										<div className="space-y-2">
-											<Label>Up through</Label>
-											<CompositeDateInput
-												numberValue={formData.upThroughNumber || ""}
-												suffixValue={formData.upThroughSuffix || ""}
-												onNumberChange={(value) =>
-													setFormData({ ...formData, upThroughNumber: value })
-												}
-												onSuffixChange={(value) =>
-													setFormData({ ...formData, upThroughSuffix: value })
-												}
-												placeholder="1254"
-											/>
-										</div>
-									</>
-								)}
-
-
-							</div>
-
-							{selectedPreset === 'Custom' && (
-								<>
-									{/* Tag Filters - Dynamic rendering from API */}
-									{tags && tags.map((tag) => (
-										<div key={tag._id} className="space-y-2">
-											<Label>{tag.name}</Label>
-											<div className="flex flex-wrap gap-2">
-												{tag.children?.map((childTag) => (
-													<Badge
-														key={childTag._id}
-														variant={
-															formData.filterTags.includes(childTag._id)
-																? "default"
-																: "outline"
-														}
-														className="cursor-pointer"
-														onClick={() => toggleTag(childTag._id)}
-													>
-														{childTag.name}
-													</Badge>
-												))}
-											</div>
-										</div>
+					<div className="space-y-2">
+						<Label className="text-lg font-semibold">Quick Start</Label>
+						<Select value={selectedPreset} onValueChange={handlePresetSelect}>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select a topic" />
+								</SelectTrigger>
+								<SelectContent>
+									{presets.map((preset) => (
+										<SelectItem key={preset.name} value={preset.name}>
+											{preset.name}
+										</SelectItem>
 									))}
+								</SelectContent>
+							</Select>
+					</div>
 
-									{/* Available Events Info */}
-									<div className="bg-muted p-3 rounded-lg">
-										<p className="text-sm font-medium">
-											{isFetchingEvents ? (
-												"Checking available events..."
-											) : availableEvents !== null ? (
-												`Available events with these filters: ${availableEvents}`
-											) : (
-												"Enter filter criteria to see available events"
-											)}
-											{availableEvents != null && availableEvents < 9 && (
-												<span className="ml-2 text-red-800">Not enough. Try adding Topics, expanding difficulty, or the time range</span>
-											)}
-										</p>
+					<div className="space-y-2">
+						<Label className="text-lg font-semibold">Detailed Start</Label>
+						<Button variant="outline" onClick={() => setShowFullForm(true)} size="lg" className="block">
+							I want to explore the game setup
+						</Button>
+					</div>
+
+					{showFullForm && (
+					<div className="space-y-6">
+						{formData.playerType && (
+							<>
+
+							{false && (
+								<Card className="p-6 space-y-4">
+									<h2 className="text-xl font-semibold">
+										Would you like to play competitively or&nbsp;collaboratively?
+									</h2>
+
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										<button
+											onClick={() => handleGameModeSelect("competitive")}
+											className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.gameMode === "competitive"
+													? "border-primary bg-primary/5"
+													: "border-border"
+												}`}
+										>
+											<h3 className="font-semibold text-lg mb-2">Play to Win</h3>
+											<p className="text-sm text-muted-foreground">
+												First player to complete their timeline&nbsp;wins
+											</p>
+										</button>
+
+										<button
+											onClick={() => handleGameModeSelect("collaborative")}
+											className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.gameMode === "collaborative"
+													? "border-primary bg-primary/5"
+													: "border-border"
+												}`}
+										>
+											<h3 className="font-semibold text-lg mb-2">Play to Build</h3>
+											<p className="text-sm text-muted-foreground">
+												Work together with others to build a single&nbsp;timeline
+											</p>
+										</button>
 									</div>
-								</>
+								</Card>
 							)}
 
-							
-						</Card>
-					)}
+							{false && formData.gameMode && (
+								<Card className="p-6 space-y-4">
+									<h2 className="text-xl font-semibold">Who’s Playing?</h2>
 
-					{error && (
-						<Alert variant="destructive">
-							<AlertDescription>{error}</AlertDescription>
-						</Alert>
-					)}
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										<button
+											onClick={() => handlePlayerTypeSelect("justMe")}
+											className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.playerType === "justMe"
+													? "border-primary bg-primary/5"
+													: "border-border"
+												}`}
+										>
+											<h3 className="font-semibold text-lg mb-2">Just Me</h3>
+											<p className="text-sm text-muted-foreground">
+												Play by yourself
+											</p>
+										</button>
 
-					{allQuestionsAnswered && (
-						<div className="flex justify-end">
-							<Button
-								onClick={handleSubmit}
-								disabled={isSubmitting || !availableEvents || availableEvents < 9}
-								size="lg"
-							>
-								{isSubmitting ? (
-									<>
-										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-										Creating...
-									</>
-								) : (
-									"Create Game"
-								)}
-							</Button>
-						</div>
-					)}
-				</div>
+										<button
+											onClick={() => handlePlayerTypeSelect("multiple")}
+											className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.playerType === "multiple"
+													? "border-primary bg-primary/5"
+													: "border-border"
+												}`}
+										>
+											<h3 className="font-semibold text-lg mb-2">Multiple Players</h3>
+											<p className="text-sm text-muted-foreground">
+												Playing with others
+											</p>
+										</button>
+									</div>
+								</Card>
+							)}
+
+							{false && formData.gameMode && formData.playerType === "multiple" && (
+								<Card className="p-6 space-y-4">
+									<h2 className="text-xl font-semibold">
+										Do you want to play on only this device or have other players join on their own&nbsp;devices?
+									</h2>
+
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										<button
+											onClick={() => handleDeviceModeSelect("single")}
+											className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.deviceMode === "single"
+													? "border-primary bg-primary/5"
+													: "border-border"
+												}`}
+										>
+											<h3 className="font-semibold text-lg mb-2">Only this Device</h3>
+											<p className="text-sm text-muted-foreground">
+												All players will share this screen and take&nbsp;turns
+											</p>
+										</button>
+
+										<button
+											onClick={() => handleDeviceModeSelect("multiple")}
+											className={`p-6 border-2 rounded-lg text-left transition-all hover:border-primary ${formData.deviceMode === "multiple"
+													? "border-primary bg-primary/5"
+													: "border-border"
+												}`}
+										>
+											<h3 className="font-semibold text-lg mb-2">They got their own devices</h3>
+											<p className="text-sm text-muted-foreground">
+												Players will join from their own&nbsp;devices
+											</p>
+										</button>
+									</div>
+								</Card>
+							)}
+
+							{false && formData.gameMode && formData.playerType === "multiple" && formData.deviceMode === "single" && (
+								<Card className="p-6 space-y-4">
+									<h2 className="text-xl font-semibold">Player Names</h2>
+									<p className="text-sm text-muted-foreground">
+										Enter player or team names (2-20&nbsp;players)
+									</p>
+
+									<div className="space-y-2">
+										{formData.playerNames.map((name, index) => (
+											<div key={index} className="flex gap-2">
+												<Input
+													type="text"
+													placeholder={`Player ${index + 1}`}
+													value={name}
+													onChange={(e) => handlePlayerNameChange(index, e.target.value)}
+													className="flex-1"
+													maxLength={50}
+												/>
+												{formData.playerNames.length > 1 && (
+													<Button
+														type="button"
+														variant="ghost"
+														size="icon"
+														onClick={() => handleRemovePlayer(index)}
+														className="shrink-0"
+													>
+														<X className="h-4 w-4" />
+													</Button>
+												)}
+											</div>
+										))}
+										{formData.playerNames.length >= 20 && (
+											<p className="text-sm text-muted-foreground">
+												Maximum 20 players reached
+											</p>
+										)}
+									</div>
+								</Card>
+							)}
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									{/* Target Score Slider - Play until score is reached */}
+									<div className="space-y-2">
+										<Label className="flex items-center gap-1">
+											Play until {formData.targetScore} events in a timeline
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+												</TooltipTrigger>
+												<TooltipContent>
+													The winner will be the first player to reach a timeline with {formData.targetScore} events.
+												</TooltipContent>
+											</Tooltip>
+										</Label>
+										<Slider
+											min={5}
+											max={25}
+											step={5}
+											value={[formData.targetScore]}
+											onValueChange={(value) =>
+												setFormData({ ...formData, targetScore: value[0] })
+											}
+										/>
+									</div>
+
+									{/* Difficulty Range Slider */}
+									<div className="space-y-2">
+										<Label className="flex items-center gap-1">
+											Event Difficulty: {difficultyLabel}
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+												</TooltipTrigger>
+												<TooltipContent>
+													Filter events by difficulty level. Only events within this range will be included.
+												</TooltipContent>
+											</Tooltip>
+										</Label>
+										<Slider
+											min={1}
+											max={5}
+											step={1}
+											value={formData.difficultyRange}
+											onValueChange={(value) =>
+												setFormData({ ...formData, difficultyRange: value as [number, number] })
+											}
+										/>
+										<div className="flex justify-between text-xs text-muted-foreground px-1">
+											{Array.from({ length: 5 }, (_, i) => (
+												<span key={i} className={formData.difficultyRange[0] <= i + 1 && i + 1 <= formData.difficultyRange[1] ? "font-bold text-primary" : ""}>
+													{DIFFICULTY_LABELS[i + 1 as keyof typeof DIFFICULTY_LABELS]}
+												</span>
+											))}
+										</div>
+									</div>
+
+									{/* Event Count Slider
+								<div className="space-y-2">
+									<Label>{formData.maxEvents} Events in the draw pile
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+											</TooltipTrigger>
+											<TooltipContent>
+												The game will end in defeat for all players if the draw pile is exhausted.
+											</TooltipContent>
+										</Tooltip>
+									</Label>
+									<Slider
+										min={10}
+										max={100}
+										step={5}
+										value={[formData.maxEvents]}
+										onValueChange={(value) =>
+											setFormData({ ...formData, maxEvents: value[0] })
+										}
+									/>
+								</div> */}
+
+									{/* Error Limit */}
+									<div className="space-y-2">
+										<Label>Error Limit
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+												</TooltipTrigger>
+												<TooltipContent>
+													If a player gets this many strikes they are immediately defeated.
+												</TooltipContent>
+											</Tooltip>
+										</Label>
+										<Select
+											value={formData.strikeLimit.toString()}
+											onValueChange={(value) =>
+												setFormData({ ...formData, strikeLimit: parseInt(value) })
+											}
+										>
+											<SelectTrigger>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="1">1 (Any mistake ends the game)</SelectItem>
+												<SelectItem value="2">2</SelectItem>
+												<SelectItem value="3">3</SelectItem>
+												<SelectItem value="5">5</SelectItem>
+												<SelectItem value="8">8</SelectItem>
+												<SelectItem value="13">13</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									{/* Beginning From - Composite input with number and suffix */}
+									<div className="space-y-2">
+										<Label>Beginning from</Label>
+										<CompositeDateInput
+											numberValue={formData.beginningFromNumber || ""}
+											suffixValue={formData.beginningFromSuffix || ""}
+											onNumberChange={(value) =>
+												setFormData({ ...formData, beginningFromNumber: value })
+											}
+											onSuffixChange={(value) =>
+												setFormData({ ...formData, beginningFromSuffix: value })
+											}
+											placeholder="4000"
+										/>
+									</div>
+
+									{/* Up Through - Composite input with number and suffix */}
+									<div className="space-y-2">
+										<Label>Up through</Label>
+										<CompositeDateInput
+											numberValue={formData.upThroughNumber || ""}
+											suffixValue={formData.upThroughSuffix || ""}
+											onNumberChange={(value) =>
+												setFormData({ ...formData, upThroughNumber: value })
+											}
+											onSuffixChange={(value) =>
+												setFormData({ ...formData, upThroughSuffix: value })
+											}
+											placeholder="1254"
+										/>
+									</div>
+
+
+								</div>
+
+								{/* Tag Filters - Dynamic rendering from API */}
+								{tags && tags.map((tag) => (
+									<div key={tag._id} className="space-y-2">
+										<Label>{tag.name}</Label>
+										<div className="flex flex-wrap gap-2">
+											{tag.children?.map((childTag) => (
+												<Badge
+													key={childTag._id}
+													variant={
+														formData.filterTags.includes(childTag._id)
+															? "default"
+															: "outline"
+													}
+													className="cursor-pointer"
+													onClick={() => toggleTag(childTag._id)}
+												>
+													{childTag.name}
+												</Badge>
+											))}
+										</div>
+									</div>
+								))}
+
+								{/* Available Events Info */}
+								<div className="bg-muted p-3 rounded-lg">
+									<p className="text-sm font-medium">
+										{isFetchingEvents ? (
+											"Checking available events..."
+										) : availableEvents !== null ? (
+											`Available events with these filters: ${availableEvents}`
+										) : (
+											"Enter filter criteria to see available events"
+										)}
+										{availableEvents != null && availableEvents < 9 && (
+											<span className="ml-2 text-red-800">Not enough. Try adding Topics, expanding difficulty, or the time range</span>
+										)}
+									</p>
+								</div>
+
+								
+							</>
+						)}
+
+						{error && (
+							<Alert variant="destructive">
+								<AlertDescription>{error}</AlertDescription>
+							</Alert>
+						)}
+
+						{allQuestionsAnswered && (
+							<div className="flex justify-end">
+								<Button
+									onClick={handleSubmit}
+									disabled={isSubmitting || !availableEvents || availableEvents < 9}
+									size="lg"
+								>
+									{isSubmitting ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											Creating...
+										</>
+									) : (
+										"Create Game"
+									)}
+								</Button>
+							</div>
+						)}
+					</div>
+				)}
+
+
+				</Card>
+
+
 			</div>
 		</TooltipProvider>
 	);

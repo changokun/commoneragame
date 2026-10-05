@@ -16,3 +16,7 @@ export const USER_SESSION_KEY = "CE-userSession";
 // Used to remember which game the user was last viewing
 // This allows returning to the same game after page refresh or navigation
 export const CURRENT_GAME_KEY = "CE-currentGameId";
+
+// Storage key for tracking how many games the user has created
+// Used to simplify the UI for new users (first-time experience)
+export const GAMES_CREATED_COUNT_KEY = "ce-numberOfGamesCreated";

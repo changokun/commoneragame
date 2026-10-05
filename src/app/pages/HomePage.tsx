@@ -1,9 +1,35 @@
-import { Link } from "react-router";
+import { useState } from "react";
+import { useNavigate, Link } from "react-router";
 import { Button } from "../components/ui/button";
-import { PlusCircle, Users } from "lucide-react";
+import { PlusCircle, Users, Loader2 } from "lucide-react";
 import { ResumeGameButton } from "../components/ResumeGameButton";
+import { createSimpleGame } from "../services/game";
 
 export function HomePage() {
+	const navigate = useNavigate();
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	/**
+	 * startSimpleGame - Creates a new game with beginner-friendly default settings
+	 * This is the same quick-start option available on the New Game page
+	 * Uses collaborative mode, single player, medium difficulty, and broad historical range
+	 * Note: Does NOT increment the games created counter since this is a trial from the homepage
+	 */
+	const startSimpleGame = async () => {
+		setIsSubmitting(true);
+
+		try {
+			const data = await createSimpleGame();
+
+			// Store game ID in localStorage
+			localStorage.setItem("CEcurrentGameId", data._id);
+
+			navigate(`/play/${data._id}`);
+		} catch (err) {
+			console.error("Failed to create simple game:", err);
+			setIsSubmitting(false);
+		}
+	};
   return (
     <div className="flex-1 flex flex-col items-center justify-center">
       <div className="max-w-3xl w-full text-center space-y-8">
@@ -18,8 +44,22 @@ export function HomePage() {
 				<ResumeGameButton />
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
+          <Button size="lg" className="w-full sm:w-auto gap-2" onClick={startSimpleGame} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Starting...
+              </>
+            ) : (
+              <>
+                <PlusCircle className="h-5 w-5" />
+                Show me how to play
+              </>
+            )}
+          </Button>
+
           <Link to="/new-game">
-            <Button size="lg" className="w-full sm:w-auto gap-2">
+            <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2">
               <PlusCircle className="h-5 w-5" />
               Create New Game
             </Button>
