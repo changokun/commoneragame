@@ -167,9 +167,22 @@ export function NewGamePage() {
 				const data = await response.json();
 				// if upThrough is empty, that means up thru today, so fill that in live now for best win
 				data.map(preset => {preset.upThrough = preset.upThrough || String(new Date().getFullYear())})
-				// todo look at browser language, ip location, or just ask? then make the default preset match their continent?
-				setSelectedPreset('Europe');
 				setPresets(data);
+				// todo look at browser language, ip location, or just ask? then make the default preset match their continent?
+				const defaultPreset = data.find(p => p.name === 'Europe');
+				if (defaultPreset) {
+					setSelectedPreset('Europe');
+	
+					// Apply preset settings to formData directly since all these useStates are async
+					setFormData({
+						...formData,
+						beginningFromNumber: parseInt(defaultPreset.beginningFrom).toString(),
+						beginningFromSuffix: defaultPreset.beginningFrom.replace(/[^abcde]+/ig, ''),
+						filterTags: defaultPreset.filterTags,
+						upThroughNumber: parseInt(defaultPreset.upThrough).toString(),
+						upThroughSuffix: defaultPreset.upThrough.replace(/[^abcde]+/ig, '')
+					});
+				}
 			} catch (err) {
 				console.error('Failed to fetch presets:', err);
 			} finally {
@@ -504,12 +517,14 @@ export function NewGamePage() {
 							</Select>
 					</div>
 
-					<div className="space-y-2">
-						<Label className="text-lg font-semibold">Detailed Start</Label>
-						<Button variant="outline" onClick={() => setShowFullForm(true)} size="lg" className="block">
-							I want to explore the game setup
-						</Button>
-					</div>
+						<div className="space-y-2">
+							<Label className="text-lg font-semibold">Detailed Start</Label>
+							{!showFullForm && (
+								<Button variant="outline" onClick={() => setShowFullForm(true)} size="lg" className="block">
+									I want to explore the game setup
+								</Button>
+							)}
+						</div>
 
 					{showFullForm && (
 					<div className="space-y-6">
