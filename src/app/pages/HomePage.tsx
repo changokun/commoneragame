@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { PlusCircle, Users, Loader2 } from "lucide-react";
 import { ResumeGameButton } from "../components/ResumeGameButton";
 import { createSimpleGame } from "../services/game";
+import { CURRENT_GAME_KEY } from "../constants";
 
 export function HomePage() {
 	const navigate = useNavigate();
@@ -22,7 +23,7 @@ export function HomePage() {
 			const data = await createSimpleGame();
 
 			// Store game ID in localStorage
-			localStorage.setItem("CEcurrentGameId", data._id);
+			// UNNEC localStorage.setItem(CURRENT_GAME_KEY, data._id);
 
 			navigate(`/play/${data._id}`);
 		} catch (err) {

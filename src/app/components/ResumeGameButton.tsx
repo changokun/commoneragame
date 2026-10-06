@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { Button } from "./ui/button";
 import { PlayCircle } from "lucide-react";
+import { CURRENT_GAME_KEY } from "../constants";
 
 /**
  * ResumeGameButton Component
  * 
- * This component checks localStorage for a current game ID (stored as "CEcurrentGameId").
+ * This component checks localStorage for a current game ID (stored as CURRENT_GAME_KEY).
  * If a game ID exists, it renders a button that links to the play page for that game.
  * This allows users to quickly resume their in-progress game.
  * 
@@ -18,7 +19,7 @@ export function ResumeGameButton() {
 	// Check localStorage for game ID on mount
 	// Using useEffect to avoid SSR issues with localStorage
 	useEffect(() => {
-		const savedGameId = localStorage.getItem("CEcurrentGameId");
+		const savedGameId = localStorage.getItem(CURRENT_GAME_KEY);
 		if (savedGameId) {
 			setGameId(savedGameId);
 		}

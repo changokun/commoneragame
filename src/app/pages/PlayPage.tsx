@@ -123,7 +123,7 @@ export function PlayPage() {
 					// data.state.incorrectCardStack = transformedStack.filter(Boolean);
 				}
 				setGameState(data);
-				// Store game ID in localStorage for future visits
+				// Store game ID in localStorage for future visits (as long as user is not a spectator) todo
 				localStorage.setItem(CURRENT_GAME_KEY, id);
 				console.log('just got this gamestate data', data)
 				// Check if there's a limbo event (drawn but not yet guessed)
@@ -265,7 +265,7 @@ export function PlayPage() {
 		const { isGameOver } = ret;
 
 		if(isGameOver) {
-			localStorage.removeItem("CEcurrentGameId");
+			localStorage.removeItem(CURRENT_GAME_KEY);
 		}
 		return ret;
 		// report changes to api. todo
@@ -320,6 +320,10 @@ export function PlayPage() {
 	const { isGameOver, isVictory, gameEndDescription } = checkGameStatus();
 	// const isGameOver = false;
 	// const isVictory = true;
+
+	if(isGameOver && gameState?.state.state !== 'underway') {
+		console.log('hmmm isGameOver is true... should we update the api with new games state?')
+	}
 
 
 

@@ -12,7 +12,7 @@ import { Badge } from "../components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../components/ui/tooltip";
 import { ensureAuth, getToken } from "../services/auth";
 import { createSimpleGame, incrementGamesCreatedCount } from "../services/game";
-import { GAMES_CREATED_COUNT_KEY } from "../constants";
+import { GAMES_CREATED_COUNT_KEY, CURRENT_GAME_KEY } from "../constants";
 import { ResumeGameButton } from "../components/ResumeGameButton";
 import { Preset } from "../types";
 
@@ -367,7 +367,7 @@ export function NewGamePage() {
 			const data = await createSimpleGame();
 
 			// Store game ID in localStorage
-			localStorage.setItem("CEcurrentGameId", data._id);
+			// UNNEC localStorage.setItem(CURRENT_GAME_KEY, data._id);
 
 			// Increment and store games created count
 			const newCount = incrementGamesCreatedCount();
@@ -444,7 +444,7 @@ export function NewGamePage() {
 			}
 
 			// Store game ID in localStorage
-			localStorage.setItem("CEcurrentGameId", data._id);
+			// UNNEC localStorage.setItem(CURRENT_GAME_KEY, data._id);
 
 			// Increment games created counter after successful game creation
 			// This tracks user experience to simplify UI for new users
