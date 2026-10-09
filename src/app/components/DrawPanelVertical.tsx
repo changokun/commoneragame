@@ -22,7 +22,7 @@ interface DrawPanelVerticalProps {
   onDraw: () => void;
   incorrectCards: Event[];
   drawStackEmpty: boolean;
-  isGameOver: boolean;
+  isGameOver: boolean | null;
   onRedraw: (card: Event) => void;
   newlyIncorrectId: string | null;
   allExpanded?: boolean | null;
@@ -71,11 +71,13 @@ export function DrawPanelVertical({
       {/* ====================================================================== */}
       {incorrectCards.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold mb-2">
+					{ ! isGameOver && (
+						<h3 className="text-sm font-semibold mb-2">
             {drawStackEmpty
               ? `…and ${incorrectCards.length} incorrect guesses`
               : incorrectCards.length > 1 ? "…or try one of these again:" : "…or try this one again:"}
-          </h3>
+						</h3>
+					)}
           <div className="space-y-2">
             {incorrectCards.map((card) => (
               <EventCard
@@ -83,11 +85,13 @@ export function DrawPanelVertical({
                 variant="incorrect"
                 event={card}
                 strikeCount={card.strikes?.length}
-                onClick={() => onRedraw(card)}
+                onClick={isGameOver? undefined : () => onRedraw(card)}
                 isNewlyPlaced={newlyIncorrectId === card._id}
                 allExpanded={allExpanded}
                 onExpandChange={onExpandChange}
                 gameState={gameState}
+								guideClass={guideClass}
+								isGameOver={isGameOver}
               />
             ))}
           </div>

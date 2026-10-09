@@ -23,7 +23,7 @@ interface DrawPanelHorizontalProps {
   onDraw: () => void;
   incorrectCards: Event[];
   drawStackEmpty: boolean;
-  isGameOver: boolean;
+  isGameOver: boolean | null;
   onRedraw: (card: Event) => void;
   newlyIncorrectId: string | null;
   allExpanded?: boolean | null;
@@ -76,12 +76,14 @@ export function DrawPanelHorizontal({
 					variant="incorrect"
 					event={card}
 					strikeCount={card.strikes?.length}
-					onClick={() => onRedraw(card)}
+					onClick={isGameOver? undefined : () => onRedraw(card)}
 					isNewlyPlaced={newlyIncorrectId === card._id}
 					allExpanded={allExpanded}
 					onExpandChange={onExpandChange}
 					className="w-64"
 					gameState={gameState}
+					guideClass={guideClass}
+					isGameOver={isGameOver}
 				/>
       ))}
     </div>
