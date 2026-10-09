@@ -76,6 +76,7 @@ export interface GameState {
   };
   players: Player[];       // Array of Player objects in this game
   remainingEventCount?: number;  // How many events are left to draw
+	viewData: {}; // snippets that the view layer uses that do not need to be sent to the api.
 }
 
 // ============================================================================
