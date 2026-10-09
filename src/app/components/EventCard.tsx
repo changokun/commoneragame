@@ -35,6 +35,7 @@ interface EventCardProps {
 	 * When gameState.state.state === 'over', always show date regardless of variant
 	 */
 	gameState?: GameState;
+	isGameOver: boolean;
 }
 
 /**
@@ -61,7 +62,8 @@ export function EventCard({
 	onExpandChange,
 	className,
 	guideClass = 'guide-0',
-	gameState
+	gameState,
+	isGameOver
 }: EventCardProps) {
 
 	// Local expanded state for this card
@@ -304,7 +306,7 @@ export function EventCard({
 	 * When game has ended (gameState.state.state === 'over'), always shows date regardless of variant
 	 */
 	const renderIndicator = () => {
-		console.log('renderInd()', gameState.state.state)
+		// console.log('renderInd()', gameState.state.state)
 		let classes = "year my-2 rounded-md bg-zinc-100 px-2 py-0 lg:px-3 lg:py-1 text-l uppercase me-4"
 
 		switch (variant) {
@@ -321,25 +323,25 @@ export function EventCard({
 		switch (variant) {
 			case 'drawn':
 				content = event.strikes?.length ? 'X'.repeat(event.strikes.length) :
-					gameState.state.state === 'underway' ?
-						'\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' :
-						formatEventDateForDisplay(event)
+				isGameOver ?
+				formatEventDateForDisplay(event) :
+						'\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'
 				break;
 			case 'timeline':
 				content = formatEventDateForDisplay(event)
 				break;
 			case 'incorrect':
 				content = 'X'.repeat(strikeCount || event.strikes?.length || 0)
-				content += gameState.state.state === 'underway' ?
-					'' :
-					' ' + formatEventDateForDisplay(event)
+				content += isGameOver ?
+				' ' + formatEventDateForDisplay(event) :
+					'' 
 				break;
 		}
 
 
 		return (
 			<span className={classes}>
-				{gameState.state.state} | {content}
+				{content}
 			</span>
 		);
 
@@ -378,8 +380,12 @@ export function EventCard({
 	const variantCardClasses = {
 		drawn: `absolute z-30`,
 		timeline: "w-full mb-4",
-		incorrect: "w-full cursor-pointer hover:bg-muted/50",
+		incorrect: "w-full hover:bg-muted/50",
 	};
+
+	if( ! isGameOver) {
+		variantCardClasses.incorrect += " cursor-pointer"
+	}
 
 	const cardClasses = `${baseCardClasses} ${shadowClasses} ${variantCardClasses[variant]} ${isNewlyPlaced ? "card-glow" : ""
 		}${isNewlyPlaced && variant === 'incorrect' ? "-incorrect" : ""
