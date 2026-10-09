@@ -396,11 +396,9 @@ export function EventCard({
 
 
 
-
-
 	return (
 		<Card className={`${cardClasses}${className ? ' ' + className : ''}`} onClick={onClick}>
-			<div className={`event-card-liner drawn-${guideClass} p-4 ${displayExpanded ? 'pb-8' : ''} relative`}>
+			<div className={`event-card-liner ${variant}-${guideClass} p-4 ${displayExpanded ? 'pb-8' : ''} relative`}>
 				{/* ================================================================ */}
 				{/* CHEVRON BUTTON - Upper right, large hitbox */}
 				{/* ================================================================ */}
@@ -423,6 +421,33 @@ export function EventCard({
 					<>
 						{renderKnownBads()}
 						<p className="text-sm mt-2">{event.description}</p>
+							{(isGameOver || variant === 'timeline') && event.sources?.length > 0 && (
+								<details className="text-xs mt-2 text-muted-foreground">
+									<summary className="cursor-pointer list-none">
+										Sources…
+									</summary>
+									<div className="mt-1 space-y-1">
+										{event.sources.map((source, index) => {
+											const isUrl = /^https?:\/\//i.test(source);
+											return isUrl ? (
+												<a
+													key={index}
+													href={source}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="block underline hover:text-primary"
+												>
+													{source}
+												</a>
+											) : (
+												<span key={index} className="block italic">
+													{source}
+												</span>
+											);
+										})}
+									</div>
+								</details>
+						)}
 					</>
 				)}
 
