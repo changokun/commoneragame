@@ -70,9 +70,8 @@ export function PlayPage() {
 	const [allExpanded, setAllExpanded] = useState<boolean | null>(true);
 	const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
 	
-
-	
-
+	// Track whether we've already updated the game state to 'complete' to avoid infinite loops
+	const [hasUpdatedGameStateToComplete, setHasUpdatedGameStateToComplete] = useState(false);
 
 
 
@@ -265,12 +264,64 @@ export function PlayPage() {
 		const { isGameOver } = ret;
 
 		if(isGameOver) {
-			localStorage.removeItem(CURRENT_GAME_KEY);
+			// update local gameState.state.state to 'complete'
+			// Note: This update is now handled in a useEffect below to avoid infinite re-renders
+			// The API call remains here since it doesn't cause re-renders
+			
+			// report changes to api - POST to /games/:id/state with {state: "complete"}
+			// This should return a 204 status code (No Content)
+			// We use an IIFE (Immediately Invoked Function Expression) to make the API call
+			// without making the containing checkGameStatus function async, which would
+			// require changes to all callers. This allows the game status check to remain
+			// synchronous while still performing the async side effect of reporting to the API.
+			(async () => {
+				try {
+					const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+					const response = await fetch(`${apiUrl}/games/${gameId}/state`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ state: 'complete' })
+					});
+					// Expect 204 No Content response - no response body to parse
+					if (response.status !== 204) {
+						console.error('Unexpected response status:', response.status);
+					}
+				} catch (error) {
+					console.error('Failed to report game state to API:', error);
+				}
+			})();
 		}
+		
+
 		return ret;
-		// report changes to api. todo
-		// return { isGameOver: isGameOver, isVictory: isVictory };
+
 	}, [gameState?.state])
+
+	// Effect to update local gameState to 'complete' when game is over
+	// This prevents infinite re-renders that would occur if we did this in the render path
+	useEffect(() => {
+		// Only update if the game is over and we haven't already updated it
+		if (gameState && gameState.state.state !== 'complete' && hasUpdatedGameStateToComplete === false) {
+			const { isGameOver } = checkGameStatus();
+			if (isGameOver) {
+				// Update local gameState to mark as complete
+				setGameState(prev => prev ? {
+					...prev,
+					state: {
+						...prev.state,
+						state: 'complete'
+					}
+				} : null);
+				
+				// Mark that we've completed the update to prevent infinite loops
+				setHasUpdatedGameStateToComplete(true);
+				
+				// Also remove from localStorage since game is over
+				localStorage.removeItem(CURRENT_GAME_KEY);
+			}
+		}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [gameState, hasUpdatedGameStateToComplete]);
 
 	const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean; gameEndDescription: string } => {
 		// console.log('inside _checkGameStatus')
