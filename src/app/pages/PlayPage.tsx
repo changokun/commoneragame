@@ -69,7 +69,8 @@ export function PlayPage() {
 	const [errorModal, setErrorModal] = useState<ErrorModalConfig | null>(null);
 	const [allExpanded, setAllExpanded] = useState<boolean | null>(true);
 	const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
-	
+	const [playerSurrendered, setPlayerSurrendered] = useState(false);
+
 	// Track whether we've already updated the game state to 'complete' to avoid infinite loops
 	const [hasUpdatedGameStateToComplete, setHasUpdatedGameStateToComplete] = useState(false);
 
@@ -134,6 +135,22 @@ export function PlayPage() {
 					setIsPaused(true);
 				}
 
+			} catch (error) {
+				console.error("Failed to fetch game state:", error);
+			}
+			setIsLoading(false);
+			
+		};
+
+		// Fetch the game state using the gameId we computed at the top
+		fetchGameState(gameId);
+
+	}, [navigate, gameId]);
+
+	useEffect(() => {
+		const loadSession = async () => {
+			console.log('get user session--------------------')
+			try {
 				// now try to load the user
 				// Use JWT-based authentication instead of UserSession localStorage
 				// Check if we have JWT credentials
@@ -147,7 +164,9 @@ export function PlayPage() {
 						username: 'Anonymous',
 						isAnonymous: true
 					};
+					console.log('this session already existed...', session)
 					setUserSession(session);
+					setIsLoadingSession(false);
 				} else {
 					// No JWT credentials - try to get anonymous token
 					try {
@@ -157,32 +176,19 @@ export function PlayPage() {
 							username: 'Anonymous',
 							isAnonymous: true
 						};
+						console.log('got a (fresh) anon session...', session)
 						setUserSession(session);
+						setIsLoadingSession(false);
 					} catch (err) {
 						console.error('Failed to get auth:', err);
 					}
 				}
-
-
-
-
-
-
-
-
-
-
 			} catch (error) {
-				console.error("Failed to fetch game state:", error);
+				console.error("Failed to fetch user session:", error);
 			}
-			setIsLoading(false);
-			setIsLoadingSession(false);
 		};
-
-		// Fetch the game state using the gameId we computed at the top
-		fetchGameState(gameId);
-
-	}, [navigate, gameId]);
+		loadSession();
+	}, [])
 
 
 	/**
@@ -245,136 +251,140 @@ export function PlayPage() {
 		return ret
 	}
 
-	/**
-	 * Checks if the game has ended and whether it was a victory or defeat
-	 * Game ends in:
-	 * - DEFEAT: When the number of strikes in the incorrect stack meets or exceeds a limit
-	 * - VICTORY: When the timeline is full OR when there are no more events to draw AND no incorrect cards
-	 * 
-	 * Note: The strike limit should come from gameState.settings, but for now we'll use a reasonable default
-	 */
-	const checkGameStatus = useCallback((): { isGameOver: boolean; isVictory: boolean; gameEndDescription: string } => {
-		// console.log('inside checkGameStatus')
-		if (!gameState) {
-			return { isGameOver: false, isVictory: false, gameEndDescription: '' };
-		}
-		const ret = _checkGameStatus();
+	const checkForGameEnd = () => {
+		setGameState(prevGameState => {
+			console.log('checkForGameEnd()', prevGameState?.state.state, userSession)
+			if( ! prevGameState) return prevGameState;
 
-		// if the game is over, remove the game id from local storage so that we don't try to reload it later.
-		const { isGameOver } = ret;
+			// obv if the game state is already complete, we do nothing.
+			if(prevGameState.state.state === 'complete') {
+				return prevGameState;
+			}
+			// obv if the game state is not underway (ie lobby), we do nothing.
+			if(prevGameState.state.state !== 'underway') {
+				return prevGameState;
+			}
+	
+			if( ! userSession) {
+				return prevGameState;
+			}
 
-		if(isGameOver) {
-			// update local gameState.state.state to 'complete'
-			// Note: This update is now handled in a useEffect below to avoid infinite re-renders
-			// The API call remains here since it doesn't cause re-renders
+			let newGameState = '';
+			let newVictor = '';
+			let newGameEndDescription = '';
+
 			
-			// report changes to api - POST to /games/:id/state with {state: "complete"}
-			// This should return a 204 status code (No Content)
-			// We use an IIFE (Immediately Invoked Function Expression) to make the API call
-			// without making the containing checkGameStatus function async, which would
-			// require changes to all callers. This allows the game status check to remain
-			// synchronous while still performing the async side effect of reporting to the API.
-			(async () => {
-				try {
-					const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-					const response = await fetch(`${apiUrl}/games/${gameId}/state`, {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ state: 'complete' })
-					});
-					// Expect 204 No Content response - no response body to parse
-					if (response.status !== 204) {
-						console.error('Unexpected response status:', response.status);
-					}
-				} catch (error) {
-					console.error('Failed to report game state to API:', error);
+			// now, based on type of game and number of players....
+			if (gameState.gameMode === 'collaborative') {
+
+				// maybe when the player surrenders, it marks something in the gamestate and then calls me so that I can handle it.
+				if(playerSurrendered) {
+					// set game state to complete
+					newGameState = 'complete'
+					// set victor to empty string
+					newVictor = ''
+					// set gameEndDescription: `PLAYER NAME made too many mistakes`
+					newGameEndDescription = `${userSession.username} gave up!`
+
+					
+					// console.log('check against strike limit')
+					// Check for DEFEAT: Too many strikes in the incorrect stack
+					// console.log (getStrikeCount(), gameState.settings.strikeLimit)
+				} else if (getStrikeCount() >= prevGameState.settings.strikeLimit) {
+					// set game state to complete
+					newGameState = 'complete'
+					// set victor to empty string
+					newVictor = ''
+					// set gameEndDescription: `PLAYER NAME made too many mistakes`
+					newGameEndDescription = `${userSession.username} made too many mistakes`
+					
+					
+					// Check if timeline has reached target score (for collaborative mode)
+					// console.log('check agains targetScore')
+				} else if (prevGameState.state.timelineCollaborative.length >= prevGameState.settings.targetScore) {
+					// set game state to complete
+					newGameState = 'complete'
+					// set victor to playerID
+					newVictor = userSession._id
+					// set gameEndDescription: `PLAYER NAME successfully arranged ${prevGameState.settings.targetScore} events in their timeline!`
+					newGameEndDescription = `${userSession.username} successfully arranged ${prevGameState.settings.targetScore} events in their timeline!`
+					
+					
+					// console.log('check agains empty draw stack')
+					// Check for DEFEAT: no cards left in draw stack
+				} else if (drawStackEmpty) {
+					// set game state to complete
+					newGameState = 'complete'
+					// set victor to playerID
+					newVictor = userSession._id
+					// set gameEndDescription: 'The entire draw pile was exhausted!'
+					newGameEndDescription = `The entire draw pile was exhausted!`
 				}
-			})();
-		}
-		
 
-		return ret;
 
-	}, [gameState?.state])
+				if(newGameState || newVictor) {
+					// also update the api (asynchronous)
+					(async () => {
+						try {
+							const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
+							console.log('updating EOGame state with API')
+							const response = await fetch(`${apiUrl}/games/${gameId}/state`, {
+								method: 'POST',
+								headers: {
+									'Content-Type': 'application/json',
+									'Authorization': `Bearer ${getToken()}`,
+								},
+								body: JSON.stringify({
+									state: newGameState,
+									victor: newVictor
+								})
+							});
+							// console.log('game state update response', response)
+							// Expect 204 No Content response - no response body to parse
+							if (response.status !== 204) {
+								console.error('Unexpected response status:', response.status);
+							}
+						} catch (error) {
+							console.error('Failed to report game state to API:', error);
+						}
+					})();
+					
 
-	// Effect to update local gameState to 'complete' when game is over
-	// This prevents infinite re-renders that would occur if we did this in the render path
-	useEffect(() => {
-		// Only update if the game is over and we haven't already updated it
-		if (gameState && gameState.state.state !== 'complete' && hasUpdatedGameStateToComplete === false) {
-			const { isGameOver } = checkGameStatus();
-			if (isGameOver) {
-				// Update local gameState to mark as complete
-				setGameState(prev => prev ? {
-					...prev,
-					state: {
-						...prev.state,
-						state: 'complete'
-					}
-				} : null);
+
+					return {
+						...prevGameState,
+						state: {
+							...prevGameState.state,
+							state: newGameState,
+							victor: newVictor
+						},
+						viewData: {
+							...prevGameState.viewData,
+							gameEndDescription: newGameEndDescription
+						}
+					};
+
+				} else {
+					console.log('nop! not end of game')
+				}
 				
-				// Mark that we've completed the update to prevent infinite loops
-				setHasUpdatedGameStateToComplete(true);
 				
-				// Also remove from localStorage since game is over
-				localStorage.removeItem(CURRENT_GAME_KEY);
+			} else {
+				console.warn('not yet developed for competetive play.')
 			}
-		}
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [gameState, hasUpdatedGameStateToComplete]);
+			
+			return prevGameState;
+		})
 
-	const _checkGameStatus = (): { isGameOver: boolean; isVictory: boolean; gameEndDescription: string } => {
-		// console.log('inside _checkGameStatus')
-		if (!gameState) {
-			return { isGameOver: false, isVictory: false, gameEndDescription: '' };
-		}
-		// First, check if the game state says it's already over
-		// This handles the case when we're loading an already-completed game from the API
-		// console.log('gameState.state', gameState.state)
-		if (gameState.state.state === 'over') {
-			console.error('not yet developed')
-			// If there's a victor and it matches user.id, it was a victory. Otherwise, it was a defeat
-			const isVictory = Boolean(gameState.state.victor);
-			return { isGameOver: true, isVictory, gameEndDescription: 'I dunno what happen.' };
-		}
-		
-		// console.log('check against strike limit')
-		// Check for DEFEAT: Too many strikes in the incorrect stack
-		if (getStrikeCount() >= gameState.settings.strikeLimit) {
-			return { isGameOver: true, isVictory: false, gameEndDescription: `PLAYER NAME made too many mistakes` };
-		}
-		
-		// does any player have the targetScore?
-		// Check if timeline has reached target score (for collaborative mode)
-		// Note: In competitive mode, this would check individual player scores
-		// console.log('check agains targetScore')
-		if (gameState.gameMode === 'collaborative') {
-			if (gameState.state.timelineCollaborative.length >= gameState.settings.targetScore) {
-				return { isGameOver: true, isVictory: true, gameEndDescription: `PLAYER NAME successfully arranged ${gameState.settings.targetScore} events in their timeline!` };
-			}
-		} else {
-			console.error('not yet developed for competetive play.')
-		}
-
-		// console.log('check agains empty draw stack')
-		// Check for DEFEAT: no cards left in draw stack
-		if (drawStackEmpty) {
-			return { isGameOver: true, isVictory: true, gameEndDescription: 'The draw pile was exhausted.' };
-		}
-		
-
-		// Game is still in progress
-		return { isGameOver: false, isVictory: false, gameEndDescription: '' };
-	};
-
-	// Use the checkGameStatus function to get current game status
-	const { isGameOver, isVictory, gameEndDescription } = checkGameStatus();
-	// const isGameOver = false;
-	// const isVictory = true;
-
-	if(isGameOver && gameState?.state.state !== 'underway') {
-		console.log('hmmm isGameOver is true... should we update the api with new games state?')
 	}
+
+
+
+	
+
+	const isGameOver = gameState && gameState.state.state === 'complete'
+	const isVictory = gameState && userSession && gameState.state.victor === userSession._id
+	const gameEndDescription = gameState?.viewData?.gameEndDescription || "Game Over, Man!"
 
 
 
@@ -670,6 +680,7 @@ export function PlayPage() {
 		setIsPaused(false);
 		setNewlyPlacedId(drawnCardId);
 		setTimeout(() => setNewlyPlacedId(null), 6000);
+		checkForGameEnd()
 
 		// Report the successful move to the server
 		const response = await reportMove(drawnCardId, true);
@@ -723,6 +734,7 @@ export function PlayPage() {
 		setIsPaused(false);
 		setNewlyIncorrectId(drawnCardId);
 		setTimeout(() => setNewlyIncorrectId(null), 6000);
+		checkForGameEnd();
 
 		// Report the incorrect move to the server
 		reportMove(drawnCardId, false, a, b);
@@ -754,7 +766,7 @@ export function PlayPage() {
 			});
 			setDrawnCard(card);
 
-			console.log('POSTING TO UDPATE RE_DRAWN CARD. NO DATA, JUST THE ID ON THE URL', card._id)
+			// console.log('POSTING TO UDPATE RE_DRAWN CARD. NO DATA, JUST THE ID ON THE URL', card._id)
 			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
 			const response = await fetch(`${apiUrl}/games/${gameId}/draw/${card._id}`, {
 				method: 'POST'
@@ -782,57 +794,9 @@ export function PlayPage() {
 	const confirmSurrender = async () => {
 		setShowSurrenderConfirm(false);
 		if (!gameId || !userSession || isSpectator || isGameOver) return;
+		setPlayerSurrendered(true);
 
-		try {
-			const apiUrl = import.meta.env.VITE_API_URL || 'https://game-phase.sarumino.com/common-era';
-			
-			// Call API to surrender - this should end the game in defeat
-			const response = await fetch(`${apiUrl}/games/${gameId}/surrender`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${getToken()}`,
-				},
-				body: JSON.stringify({ playerId: userSession._id })
-			});
-
-			if (response.ok) {
-				// Update local state to show game is over in defeat
-				const data = await response.json();
-				
-				// Update game state to mark it as over
-				setGameState({
-					...gameState,
-					state: {
-						...gameState.state,
-						state: 'over',
-						victor: null, // No victor means defeat
-					}
-				});
-			} else {
-				console.error('Failed to surrender:', response);
-				// Still mark as over locally for immediate feedback
-				setGameState({
-					...gameState,
-					state: {
-						...gameState.state,
-						state: 'over',
-						victor: null,
-					}
-				});
-			}
-		} catch (error) {
-			console.error('Error surrendering:', error);
-			// Mark as over locally even on error
-			setGameState({
-				...gameState,
-				state: {
-					...gameState.state,
-					state: 'over',
-					victor: null,
-				}
-			});
-		}
+		checkForGameEnd(); // handles api updates and more
 	};
 
 	let strikeCountdown = gameState.settings.strikeLimit - getStrikeCount();
