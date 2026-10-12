@@ -279,7 +279,7 @@ export function Timeline({ events: eventIds, gameId, drawnCard, handleCorrectMov
 				key={98989898}
 				className="intro"
 			>
-				This is your timeline. Older events are at the top, more recent events are at the bottom. Grow your timeline by drawing events and placing them correctly inbetween the events that are already in your timeline. It starts with two random events.
+				This is your timeline. Older events are at the top, more recent events are at the bottom. Grow your timeline by drawing events and placing them correctly between the events that are already in your timeline. It starts with two random events.
 			</div>
 		)
 	}
