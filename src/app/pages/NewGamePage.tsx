@@ -169,9 +169,9 @@ export function NewGamePage() {
 				data.map(preset => {preset.upThrough = preset.upThrough || String(new Date().getFullYear())})
 				setPresets(data);
 				// todo look at browser language, ip location, or just ask? then make the default preset match their continent?
-				const defaultPreset = data.find(p => p.name === 'Europe');
+				const defaultPreset = data.find(p => p.name === 'European History');
 				if (defaultPreset) {
-					setSelectedPreset('Europe');
+					setSelectedPreset(defaultPreset.name);
 	
 					// Apply preset settings to formData directly since all these useStates are async
 					setFormData({
@@ -503,8 +503,9 @@ export function NewGamePage() {
 
 					<div className="space-y-2">
 						<Label className="text-lg font-semibold">Quick Start</Label>
-						<Select value={selectedPreset} onValueChange={handlePresetSelect}>
-								<SelectTrigger className="w-full">
+						<div className="flex gap-2">
+							<Select value={selectedPreset} onValueChange={handlePresetSelect}>
+								<SelectTrigger className="flex-1">
 									<SelectValue placeholder={isLoadingPresets ? "Loading Topics…" : "Select a topic"} />
 								</SelectTrigger>
 								<SelectContent>
@@ -515,16 +516,33 @@ export function NewGamePage() {
 									))}
 								</SelectContent>
 							</Select>
-					</div>
-
-						<div className="space-y-2">
-							<Label className="text-lg font-semibold">Detailed Start</Label>
-							{!showFullForm && (
-								<Button variant="outline" onClick={() => setShowFullForm(true)} size="lg" className="block">
-									I want to explore the game setup
+							{ ! showFullForm && (
+								<Button
+									onClick={handleSubmit}
+									disabled={isSubmitting || !availableEvents || availableEvents <= 9}
+									size="lg"
+								>
+									{isSubmitting ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											Loading...
+										</>
+									) : (
+										`Play ${selectedPreset} set`
+									)}
 								</Button>
 							)}
 						</div>
+					</div>
+
+					<div className="space-y-2">
+						<Label className="text-lg font-semibold">Detailed Start</Label>
+						{!showFullForm && (
+							<Button variant="outline" onClick={() => setShowFullForm(true)} size="lg" className="block">
+								I want to explore the game setup
+							</Button>
+						)}
+					</div>
 
 					{showFullForm && (
 					<div className="space-y-6">
@@ -876,7 +894,7 @@ export function NewGamePage() {
 							<div className="flex justify-end">
 								<Button
 									onClick={handleSubmit}
-									disabled={isSubmitting || !availableEvents || availableEvents < 9}
+									disabled={isSubmitting || !availableEvents || availableEvents <= 9}
 									size="lg"
 								>
 									{isSubmitting ? (
