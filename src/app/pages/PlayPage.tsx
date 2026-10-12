@@ -378,6 +378,12 @@ export function PlayPage() {
 
 	}
 
+	useEffect(() => {
+    if (playerSurrendered) {
+        checkForGameEnd();
+    }
+	}, [playerSurrendered, checkForGameEnd]);
+
 
 
 	
@@ -794,9 +800,7 @@ export function PlayPage() {
 	const confirmSurrender = async () => {
 		setShowSurrenderConfirm(false);
 		if (!gameId || !userSession || isSpectator || isGameOver) return;
-		setPlayerSurrendered(true);
-
-		checkForGameEnd(); // handles api updates and more
+		setPlayerSurrendered(true); // Effect will trigger checkForGameEnd
 	};
 
 	let strikeCountdown = gameState.settings.strikeLimit - getStrikeCount();
