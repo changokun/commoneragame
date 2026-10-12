@@ -166,7 +166,10 @@ export function NewGamePage() {
 				const response = await fetch(`${apiUrl}/presets`);
 				const data = await response.json();
 				// if upThrough is empty, that means up thru today, so fill that in live now for best win
-				data.map(preset => {preset.upThrough = preset.upThrough || String(new Date().getFullYear())})
+				data.map(preset => {preset.upThrough = preset.upThrough || String(new Date().getFullYear()) + ' CE'})
+				// if beginningFrom is empty, that means from before the universe. Filling it in here because the other one is done here, and it could be argued to be a view-layer thing.
+				data.map(preset => {preset.beginningFrom = preset.beginningFrom || '13.8 billion years ago'})
+				// console.log('data', data)
 				setPresets(data);
 				// todo look at browser language, ip location, or just ask? then make the default preset match their continent?
 				const defaultPreset = data.find(p => p.name === 'European History');
@@ -177,10 +180,12 @@ export function NewGamePage() {
 					setFormData({
 						...formData,
 						beginningFromNumber: parseInt(defaultPreset.beginningFrom).toString(),
-						beginningFromSuffix: defaultPreset.beginningFrom.replace(/[^abcde]+/ig, ''),
+						// beginningFromSuffix: defaultPreset.beginningFrom.replace(/[^abcde]+/ig, ''),
+						beginningFromSuffix: defaultPreset.beginningFrom.replace(/^[\d,.]+\s+/g, ''),
 						filterTags: defaultPreset.filterTags,
 						upThroughNumber: parseInt(defaultPreset.upThrough).toString(),
-						upThroughSuffix: defaultPreset.upThrough.replace(/[^abcde]+/ig, '')
+						// upThroughSuffix: defaultPreset.upThrough.replace(/[^abcde]+/ig, '')
+						upThroughSuffix: defaultPreset.upThrough.replace(/^[\d,.]+\s+/g, '')
 					});
 				}
 			} catch (err) {
@@ -293,11 +298,11 @@ export function NewGamePage() {
 				...formData,
 				// maxEvents: preset.maxEvents,
 				// strikeLimit: preset.strikeLimit,
-				beginningFromNumber: parseInt(preset.beginningFrom).toString(),
-				beginningFromSuffix: preset.beginningFrom.replace(/[^abcde]+/ig, ''),
+				beginningFromNumber: parseFloat(preset.beginningFrom).toString(),
+				beginningFromSuffix: preset.beginningFrom.replace(/^[\d,.]+\s+/g, ''),
 				filterTags: preset.filterTags,
-				upThroughNumber: parseInt(preset.upThrough).toString(),
-				upThroughSuffix: preset.upThrough.replace(/[^abcde]+/ig, '')
+				upThroughNumber: parseFloat(preset.upThrough).toString(),
+				upThroughSuffix: preset.upThrough.replace(/^[\d,.]+\s+/g, '')
 			});
 		} else {
 			console.error('I don’t know a preset named ' + preset)
@@ -472,8 +477,9 @@ export function NewGamePage() {
 	const difficultyLabel = formData.difficultyRange[0] === formData.difficultyRange[1] ? DIFFICULTY_LABELS[formData.difficultyRange[0]] : `${DIFFICULTY_LABELS[formData.difficultyRange[0]]} to ${DIFFICULTY_LABELS[formData.difficultyRange[1]]}`
 
 
-					console.log('formDataformDataformDataformData', formData.filterTags)
-					console.log('tagstagstgas', tags)
+					// console.log('formDataformDataformDataformData', formData.filterTags)
+					// console.log('tagstagstgas', tags)
+					console.log('formData', formData)
 
 	return (
 		<TooltipProvider>
@@ -850,7 +856,7 @@ export function NewGamePage() {
 												<Badge
 													key={childTag._id}
 													variant={
-														formData.filterTags.includes(childTag._id)
+														formData.filterTags?.includes(childTag._id)
 															? "default"
 															: "outline"
 													}
