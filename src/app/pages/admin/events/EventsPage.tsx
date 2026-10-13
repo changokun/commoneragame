@@ -325,7 +325,12 @@ export function EventsPage() {
                 </TableHeader>
                 <TableBody>
                   {paginatedEvents.map((event) => (
-                    <TableRow key={event._id}>
+                    // Make entire row clickable to open edit page in new tab
+                    <TableRow 
+                      key={event._id}
+                      onClick={() => window.open(`/admin/events/edit/${event._id}`, '_blank')}
+                      className="cursor-pointer hover:bg-muted/50"
+                    >
                       {/* Date column */}
                       <TableCell>
                         {event.date || event.dateBCE ? (
@@ -372,13 +377,15 @@ export function EventsPage() {
                         {event.difficulty ? `${event.difficulty}/5` : "-"}
                       </TableCell>
                       
-                      {/* Actions column */}
+                      {/* Actions column - prevent row click from triggering when button is clicked */}
                       <TableCell className="text-right">
-                        <Link to={`/admin/events/edit/${event._id}`}>
-                          <Button variant="outline" size="sm">
-                            Edit
-                          </Button>
-                        </Link>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Edit
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
