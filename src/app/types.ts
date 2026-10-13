@@ -121,6 +121,8 @@ export interface Event {
   feedbacks?: Feedback[]; // Array of feedback objects for this event
 	difficulty?: number; // 1-5
   sources?: string[]; // Array of source URLs
+	dateSortIndex?: number; // Calculated timestamp for sorting, not persisted
+
 }
 
 export interface Strike {

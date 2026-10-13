@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
-import { Loader2, Heart, Flag, MessageSquare } from "lucide-react";
+import { Loader2, Heart, Flag, MessageSquare, ChevronUp, ChevronDown } from "lucide-react";
 import { Event, Feedback } from "../../../types";
 import { formatEventDateForDisplay } from "../../../utils";
 import { adminFetch } from "../../../services/adminAuth";
@@ -49,6 +49,12 @@ export function EventsPage() {
   // itemsPerPage: how many events to show per page, with options for user selection
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+
+  // Sorting state
+  // sortBy: which column to sort by (date, difficulty, favorites, unresolved)
+  // sortDirection: ascending or descending order
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // ==========================================================================
   // FEEDBACK PILLS - Display unresolved feedback counts by type
@@ -173,12 +179,99 @@ export function EventsPage() {
   // Only recalculates when events, currentPage, or itemsPerPage change
   const totalCount = events.length;
   const totalPages = useMemo(() => Math.ceil(totalCount / itemsPerPage), [totalCount, itemsPerPage]);
-  
-  // Slice events array to get only the events for the current page
+
+  // ==========================================================================
+  // SORTING LOGIC
+  // ==========================================================================
+
+  /**
+   * Handler for changing the sort column
+   * If clicking the same column, toggles direction
+   * If clicking a different column, sorts ascending by default
+   */
+  const handleSort = useCallback((column: string) => {
+    if (sortBy === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Sort ascending by default when clicking a new column
+      setSortBy(column);
+      setSortDirection('asc');
+    }
+    // Reset to first page when sorting changes
+    setCurrentPage(1);
+  }, [sortBy]);
+
+  /**
+   * Get the sort value for an event based on the current sort column
+   * Returns a comparable value for sorting
+   */
+  const getSortValue = useCallback((event: Event): number | Date | null => {
+    switch (sortBy) {
+      case 'date':
+				if( ! event.dateSortIndex) {
+					if (typeof event.dateBCE === 'number' && event.dateBCE < 0) {
+						// dateBCE is negative: -500 = 500 BCE, -1000 = 1000 BCE
+						// Multiply by large factor to ensure BCE dates sort before CE dates
+						// More negative dateBCE = earlier date = more negative result
+						event.dateSortIndex = event.dateBCE * 10_000_000_000_000;
+					} else if (event.date) {
+						console.log(event.date, typeof event.date)
+						event.dateSortIndex = new Date(event.date).getTime();
+					} else {
+						event.dateSortIndex = Infinity; // No date - sort last
+					}
+					console.log('event.dateSortIndex', event.dateSortIndex)
+				}
+
+				return event.dateSortIndex;
+      case 'difficulty':
+        return event.difficulty || 0;
+      case 'favorites':
+        return getFavoriteCount(event);
+      case 'unresolved':
+        return getUnresolvedFlagCount(event);
+      default:
+        return null;
+    }
+  }, [sortBy, getFavoriteCount, getUnresolvedFlagCount]);
+
+  // Sort and slice events array for the current page
   const paginatedEvents = useMemo(() => {
+    // Create a copy of events to sort
+    let sortedEvents = [...events];
+    
+    // Sort if a sort column is selected
+    if (sortBy) {
+      sortedEvents.sort((a, b) => {
+        const aVal = getSortValue(a);
+        const bVal = getSortValue(b);
+        
+        // Handle null values (events without the field)
+        if (aVal === null && bVal === null) return 0;
+        if (aVal === null) return 1; // nulls last
+        if (bVal === null) return -1; // nulls last
+        
+        // Compare values
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+        
+        // For Date objects, convert to timestamp for comparison
+        if (aVal instanceof Date && bVal instanceof Date) {
+          const aTime = aVal.getTime();
+          const bTime = bVal.getTime();
+          return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
+        }
+        
+        return 0;
+      });
+    }
+    
+    // Slice for pagination
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return events.slice(startIndex, startIndex + itemsPerPage);
-  }, [events, currentPage, itemsPerPage]);
+    return sortedEvents.slice(startIndex, startIndex + itemsPerPage);
+  }, [events, currentPage, itemsPerPage, sortBy, sortDirection, getSortValue]);
 
   // Handler for changing the current page
   // Ensures page stays within valid range (1 to totalPages)
@@ -206,6 +299,43 @@ export function EventsPage() {
     setItemsPerPage(Number(value));
     setCurrentPage(1);
   }, []);
+
+  // ==========================================================================
+  // SORTABLE TABLE HEADER COMPONENT
+  // ==========================================================================
+
+  /**
+   * SortableTableHead component - a table header that can be clicked to sort
+   * Shows sort direction indicator when active
+   */
+  const SortableTableHead = ({ 
+    column, 
+    children, 
+    className = ""
+  }: { 
+    column: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => {
+    const isSorted = sortBy === column;
+    return (
+      <TableHead 
+        className={`cursor-pointer select-none ${className}`}
+        onClick={() => handleSort(column)}
+      >
+        <div className="flex items-center justify-center gap-1">
+          {children}
+          {isSorted && (
+            sortDirection === 'asc' ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )
+          )}
+        </div>
+      </TableHead>
+    );
+  };
 
   // ==========================================================================
   // PAGINATION CONTROLS COMPONENT
@@ -310,12 +440,26 @@ export function EventsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[120px]">Date</TableHead>
+                {/* Date column - sortable by date */}
+                <SortableTableHead column="date" className="w-[120px]">
+                  Date
+                </SortableTableHead>
+                {/* Title column - NOT sortable per user request */}
                 <TableHead>Title</TableHead>
+                {/* Description column - NOT sortable per user request */}
                 <TableHead>Description</TableHead>
-                <TableHead className="w-[80px] text-center">Favorites</TableHead>
-                <TableHead className="w-[80px] text-center">Unresolved</TableHead>
-                <TableHead className="w-[80px] text-center">Difficulty</TableHead>
+                {/* Favorites column - sortable by favorite count */}
+                <SortableTableHead column="favorites" className="w-[80px] text-center">
+                  Favorites
+                </SortableTableHead>
+                {/* Unresolved column - sortable by unresolved flag count */}
+                <SortableTableHead column="unresolved" className="w-[80px] text-center">
+                  Unresolved
+                </SortableTableHead>
+                {/* Difficulty column - sortable by difficulty rating */}
+                <SortableTableHead column="difficulty" className="w-[80px] text-center">
+                  Difficulty
+                </SortableTableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -330,6 +474,9 @@ export function EventsPage() {
                   <TableCell>
                     {event.date || event.dateBCE ? (
                       <span className="text-sm text-muted-foreground">
+												{/* {event.dateSortIndex} | 
+												{event.dateBCE} | 
+												{event.date} |  */}
                         {formatEventDateForDisplay(event)}
                       </span>
                     ) : (
