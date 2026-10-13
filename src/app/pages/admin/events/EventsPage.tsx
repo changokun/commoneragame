@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Link } from "react-router";
 import { Button } from "../../../components/ui/button";
-import { Card } from "../../../components/ui/card";
 import { Loader2, Heart, Flag, MessageSquare } from "lucide-react";
 import { Event, Feedback } from "../../../types";
 import { formatEventDateForDisplay } from "../../../utils";
@@ -295,109 +293,93 @@ export function EventsPage() {
   // ==========================================================================
 
   return (
-    <div className="max-w-6xl mx-auto p-8">
+    <div className="p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Events</h1>
         <span className="text-muted-foreground">{totalCount} total</span>
       </div>
-      <Card className="p-6">
-        {totalCount === 0 ? (
-          // Show message if no events exist
-          <p className="text-muted-foreground text-center py-8">No events found.</p>
-        ) : (
-          <>
-            {/* PAGINATION CONTROLS - TOP */}
-            <PaginationControls />
+      {totalCount === 0 ? (
+        // Show message if no events exist
+        <p className="text-muted-foreground text-center py-8">No events found.</p>
+      ) : (
+        <>
+          {/* PAGINATION CONTROLS - TOP */}
+          <PaginationControls />
 
-            {/* TABLE - Displays paginated events */}
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[120px]">Date</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="w-[80px] text-center">Favorites</TableHead>
-                    <TableHead className="w-[80px] text-center">Unresolved</TableHead>
-                    <TableHead className="w-[80px] text-center">Difficulty</TableHead>
-                    <TableHead className="w-[80px] text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedEvents.map((event) => (
-                    // Make entire row clickable to open edit page in new tab
-                    <TableRow 
-                      key={event._id}
-                      onClick={() => window.open(`/admin/events/edit/${event._id}`, '_blank')}
-                      className="cursor-pointer hover:bg-muted/50"
-                    >
-                      {/* Date column */}
-                      <TableCell>
-                        {event.date || event.dateBCE ? (
-                          <span className="text-sm text-muted-foreground">
-                            {formatEventDateForDisplay(event)}
-                          </span>
-                        ) : (
-                          <span className="text-destructive">NO DATE</span>
-                        )}
-                      </TableCell>
-                      
-                      {/* Title column */}
-                      <TableCell className="font-medium">
-                        {event.title || event.name || event._id}
-                      </TableCell>
-                      
-                      {/* Description column - truncated to prevent overflow */}
-                      <TableCell className="max-w-[300px] truncate">
-                        {event.description || "-"}
-                      </TableCell>
-                      
-                      {/* Favorites column - shows count of favorite feedbacks */}
-                      <TableCell className="text-center">
-                        {getFavoriteCount(event) > 0 ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <Heart className="w-4 h-4 fill-red-500 text-red-500" />
-                            <span>{getFavoriteCount(event)}</span>
-                          </div>
-                        ) : "-"}
-                      </TableCell>
-                      
-                      {/* Unresolved column - shows count of unresolved flag feedbacks */}
-                      <TableCell className="text-center">
-                        {getUnresolvedFlagCount(event) > 0 ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <Flag className="w-4 h-4 fill-amber-500 text-amber-500" />
-                            <span>{getUnresolvedFlagCount(event)}</span>
-                          </div>
-                        ) : "-"}
-                      </TableCell>
-                      
-                      {/* Difficulty column */}
-                      <TableCell className="text-center">
-                        {event.difficulty ? `${event.difficulty}/5` : "-"}
-                      </TableCell>
-                      
-                      {/* Actions column - prevent row click from triggering when button is clicked */}
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+          {/* TABLE - Displays paginated events */}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[120px]">Date</TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-[80px] text-center">Favorites</TableHead>
+                <TableHead className="w-[80px] text-center">Unresolved</TableHead>
+                <TableHead className="w-[80px] text-center">Difficulty</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedEvents.map((event) => (
+                // Make entire row clickable to open edit page in new tab
+                <TableRow 
+                  key={event._id}
+                  onClick={() => window.open(`/admin/events/edit/${event._id}`, '_blank')}
+                  className="cursor-pointer hover:bg-muted/50"
+                >
+                  {/* Date column */}
+                  <TableCell>
+                    {event.date || event.dateBCE ? (
+                      <span className="text-sm text-muted-foreground">
+                        {formatEventDateForDisplay(event)}
+                      </span>
+                    ) : (
+                      <span className="text-destructive">NO DATE</span>
+                    )}
+                  </TableCell>
+                  
+                  {/* Title column */}
+                  <TableCell className="font-medium">
+                    {event.title || event.name || event._id}
+                  </TableCell>
+                  
+                  {/* Description column - truncated to prevent overflow */}
+                  <TableCell className="max-w-[300px] truncate">
+                    {event.description || "-"}
+                  </TableCell>
+                  
+                  {/* Favorites column - shows count of favorite feedbacks */}
+                  <TableCell className="text-center">
+                    {getFavoriteCount(event) > 0 ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <Heart className="w-4 h-4 fill-red-500 text-red-500" />
+                        <span>{getFavoriteCount(event)}</span>
+                      </div>
+                    ) : "-"}
+                  </TableCell>
+                  
+                  {/* Unresolved column - shows count of unresolved flag feedbacks */}
+                  <TableCell className="text-center">
+                    {getUnresolvedFlagCount(event) > 0 ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <Flag className="w-4 h-4 fill-amber-500 text-amber-500" />
+                        <span>{getUnresolvedFlagCount(event)}</span>
+                      </div>
+                    ) : "-"}
+                  </TableCell>
+                  
+                  {/* Difficulty column */}
+                  <TableCell className="text-center">
+                    {event.difficulty ? `${event.difficulty}/5` : "-"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-            {/* PAGINATION CONTROLS - BOTTOM */}
-            <PaginationControls />
-          </>
-        )}
-      </Card>
+          {/* PAGINATION CONTROLS - BOTTOM */}
+          <PaginationControls />
+        </>
+      )}
     </div>
   );
 }
