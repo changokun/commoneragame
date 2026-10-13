@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
-import { Loader2, Heart, Flag, MessageSquare, ChevronUp, ChevronDown } from "lucide-react";
+import { Loader2, Heart, Flag, MessageSquare, ChevronUp, ChevronDown, Download } from "lucide-react";
 import { Event, Feedback } from "../../../types";
 import { formatEventDateForDisplay } from "../../../utils";
 import { adminFetch } from "../../../services/adminAuth";
@@ -369,6 +369,39 @@ export function EventsPage() {
   }, []);
 
   // ==========================================================================
+  // DOWNLOAD LOGIC
+  // ==========================================================================
+
+  /**
+   * Handler for downloading filtered events as JSON file
+   * Uses browser-native Blob URL approach for client-side download
+   * Downloads ALL filtered events (not just current page) to match visible data
+   */
+  const handleDownload = useCallback(() => {
+    // Create JSON string from filtered events (all visible events, not just paginated)
+    const jsonString = JSON.stringify(filteredEvents, null, 2);
+    
+    // Create Blob with JSON data
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    
+    // Create object URL for the blob
+    const url = URL.createObjectURL(blob);
+    
+    // Create temporary anchor element to trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `events-${new Date().toISOString().split('T')[0]}.json`;
+    
+    // Append to body, click, and remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up object URL to free memory
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  }, [filteredEvents]);
+
+  // ==========================================================================
   // SORTABLE TABLE HEADER COMPONENT
   // ==========================================================================
 
@@ -561,6 +594,17 @@ export function EventsPage() {
 								Clear
 							</Button>
 						)}
+						{/* DOWNLOAD BUTTON - Download all filtered events as JSON */}
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleDownload}
+							disabled={totalCount === 0}
+							className="ml-auto"
+						>
+							<Download className="w-4 h-4 mr-1" />
+							Download ({totalCount})
+						</Button>
 					</div>
 				</div>
 
