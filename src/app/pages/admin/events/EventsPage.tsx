@@ -35,6 +35,13 @@ import {
   SelectItem,
 } from "../../../components/ui/select";
 
+// Import Input component for search
+import { Input } from "../../../components/ui/input";
+
+// Import Checkbox and Label components for difficulty filter
+import { Checkbox } from "../../../components/ui/checkbox";
+import { Label } from "../../../components/ui/label";
+
 
 export function EventsPage() {
   // ==========================================================================
@@ -56,6 +63,23 @@ export function EventsPage() {
   // sortDirection: ascending or descending order
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Search state - regex pattern for filtering events
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Difficulty filter state - array of selected difficulty numbers (1-5)
+  // Empty array means all difficulties (no filtering)
+  const [selectedDifficulties, setSelectedDifficulties] = useState<number[]>([]);
+
+  // Difficulty levels configuration for rendering checkboxes
+  // Maps numeric difficulty values to display labels
+  const DIFFICULTY_LEVELS = [
+    { value: 1, label: 'Easy' },
+    { value: 2, label: 'Elementary' },
+    { value: 3, label: 'Secondary' },
+    { value: 4, label: 'University' },
+    { value: 5, label: 'PhD' },
+  ];
 
   // ==========================================================================
   // FEEDBACK PILLS - Display unresolved feedback counts by type
@@ -176,9 +200,45 @@ export function EventsPage() {
     fetchAllEvents();
   }, []);
 
+  // ==========================================================================
+  // SEARCH & FILTERING LOGIC
+  // ==========================================================================
+
+  /**
+   * Filter events based on search query and difficulty selection
+   * Uses regex for search if valid, falls back to simple string includes
+   * Filters where NEITHER title NOR description contains the search query
+   * Also filters by selected difficulty levels if any are selected
+   */
+  const filteredEvents = useMemo(() => {
+    return events.filter(event => {
+      // Search filter - if searchQuery is empty, always passes
+      let matchesSearch = true;
+      if (searchQuery) {
+        try {
+          const regex = new RegExp(searchQuery, 'i');
+          const title = event.title || event.name || '';
+          const description = event.description || '';
+          matchesSearch = regex.test(title) || regex.test(description);
+        } catch (e) {
+          const query = searchQuery.toLowerCase();
+          const title = (event.title || event.name || '').toLowerCase();
+          const description = (event.description || '').toLowerCase();
+          matchesSearch = title.includes(query) || description.includes(query);
+        }
+      }
+      
+      // Difficulty filter - if no difficulties selected, always passes
+      const matchesDifficulty = selectedDifficulties.length === 0 ||
+        selectedDifficulties.includes(event.difficulty || 0);
+      
+      return matchesSearch && matchesDifficulty;
+    });
+  }, [events, searchQuery, selectedDifficulties]);
+
   // Calculate pagination derived values using useMemo for performance
-  // Only recalculates when events, currentPage, or itemsPerPage change
-  const totalCount = events.length;
+  // Only recalculates when filteredEvents, currentPage, or itemsPerPage change
+  const totalCount = filteredEvents.length;
   const totalPages = useMemo(() => Math.ceil(totalCount / itemsPerPage), [totalCount, itemsPerPage]);
 
   // ==========================================================================
@@ -239,8 +299,8 @@ export function EventsPage() {
 
   // Sort and slice events array for the current page
   const paginatedEvents = useMemo(() => {
-    // Create a copy of events to sort
-    let sortedEvents = [...events];
+    // Create a copy of filteredEvents to sort
+    let sortedEvents = [...filteredEvents];
     
     // Sort if a sort column is selected
     if (sortBy) {
@@ -272,7 +332,7 @@ export function EventsPage() {
     // Slice for pagination
     const startIndex = (currentPage - 1) * itemsPerPage;
     return sortedEvents.slice(startIndex, startIndex + itemsPerPage);
-  }, [events, currentPage, itemsPerPage, sortBy, sortDirection, getSortValue]);
+  }, [filteredEvents, currentPage, itemsPerPage, sortBy, sortDirection, getSortValue]);
 
   // Handler for changing the current page
   // Ensures page stays within valid range (1 to totalPages)
@@ -298,6 +358,13 @@ export function EventsPage() {
   // Resets to first page to avoid showing empty results
   const handleItemsPerPageChange = useCallback((value: string) => {
     setItemsPerPage(Number(value));
+    setCurrentPage(1);
+  }, []);
+
+  // Handler for search input change
+  // Resets to first page when search changes
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
     setCurrentPage(1);
   }, []);
 
@@ -429,105 +496,167 @@ export function EventsPage() {
         <h1 className="text-3xl font-bold">Events</h1>
         <span className="text-muted-foreground">{totalCount} total</span>
       </div>
-      {totalCount === 0 ? (
-        // Show message if no events exist
-        <p className="text-muted-foreground text-center py-8">No events found.</p>
-      ) : (
-        <>
-          {/* PAGINATION CONTROLS - TOP */}
-          <PaginationControls />
+			<>
+				{/* SEARCH INPUT - Filter by title or description */}
+				<div className="mb-4">
+					<div className="flex items-center gap-2">
+						<label htmlFor="search" className="text-sm font-medium whitespace-nowrap">
+							Search:
+						</label>
+						<Input
+							id="search"
+							type="text"
+							placeholder="Title or description (regex supported)"
+							value={searchQuery}
+							onChange={handleSearchChange}
+							className="w-[300px]"
+						/>
+						{searchQuery && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => {
+									setSearchQuery('');
+									setCurrentPage(1);
+								}}
+							>
+								Clear
+							</Button>
+						)}
+					</div>
+				</div>
 
-          {/* TABLE - Displays paginated events */}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {/* Date column - sortable by date */}
-                <SortableTableHead column="date" className="w-[120px]">
-                  Date
-                </SortableTableHead>
-                {/* Title column - NOT sortable per user request */}
-                <TableHead>Title</TableHead>
-                {/* Description column - NOT sortable per user request */}
-                <TableHead>Description</TableHead>
-                {/* Favorites column - sortable by favorite count */}
-                <SortableTableHead column="favorites" className="w-[80px] text-center">
-                  Favorites
-                </SortableTableHead>
-                {/* Unresolved column - sortable by unresolved flag count */}
-                <SortableTableHead column="unresolved" className="w-[80px] text-center">
-                  Unresolved
-                </SortableTableHead>
-                {/* Difficulty column - sortable by difficulty rating */}
-                <SortableTableHead column="difficulty" className="w-[80px] text-center">
-                  Difficulty
-                </SortableTableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedEvents.map((event) => (
-                // Make entire row clickable to open edit page in new tab
-                <TableRow 
-                  key={event._id}
-                  onClick={() => window.open(`/admin/events/edit/${event._id}`, '_blank')}
-                  className="cursor-pointer hover:bg-muted/50"
-                >
-                  {/* Date column */}
-                  <TableCell>
-                    {event.date || event.dateBCE ? (
-                      <span className="text-sm text-muted-foreground">
-												{/* {event.dateSortIndex} | 
-												{event.dateBCE} | 
-												{event.date} |  */}
-                        {formatEventDateForDisplay(event)}
-                      </span>
-                    ) : (
-                      <span className="text-destructive">NO DATE</span>
-                    )}
-                  </TableCell>
-                  
-                  {/* Title column */}
-                  <TableCell className="font-medium">
-                    {event.title || event.name || event._id}
-                  </TableCell>
-                  
-                  {/* Description column - truncated to prevent overflow */}
-                  <TableCell className="max-w-[300px] truncate">
-                    {event.description || "-"}
-                  </TableCell>
-                  
-                  {/* Favorites column - shows count of favorite feedbacks */}
-                  <TableCell className="text-center">
-                    {getFavoriteCount(event) > 0 ? (
-                      <div className="flex items-center justify-center gap-1">
-                        <Heart className="w-4 h-4 fill-red-500 text-red-500" />
-                        <span>{getFavoriteCount(event)}</span>
-                      </div>
-                    ) : "-"}
-                  </TableCell>
-                  
-                  {/* Unresolved column - shows count of unresolved flag feedbacks */}
-                  <TableCell className="text-center">
-                    {getUnresolvedFlagCount(event) > 0 ? (
-                      <div className="flex items-center justify-center gap-1">
-                        <Flag className="w-4 h-4 fill-amber-500 text-amber-500" />
-                        <span>{getUnresolvedFlagCount(event)}</span>
-                      </div>
-                    ) : "-"}
-                  </TableCell>
-                  
-                  {/* Difficulty column */}
-                  <TableCell className="text-center">
-                    {event.difficulty ? DIFFICULTY_LABELS[event.difficulty as keyof typeof DIFFICULTY_LABELS] : "-"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+				{/* DIFFICULTY FILTER - Checkboxes for each difficulty level */}
+				<div className="mb-4">
+					<div className="flex items-center gap-2 flex-wrap">
+						<span className="text-sm font-medium whitespace-nowrap">Difficulty:</span>
+						{DIFFICULTY_LEVELS.map(level => (
+							<div key={level.value} className="flex items-center gap-1">
+								<Checkbox
+									id={`difficulty-${level.value}`}
+									checked={selectedDifficulties.includes(level.value)}
+									onCheckedChange={(checked) => {
+										if (checked) {
+											setSelectedDifficulties(prev => [...prev, level.value]);
+										} else {
+											setSelectedDifficulties(prev => prev.filter(d => d !== level.value));
+										}
+										setCurrentPage(1);
+									}}
+								/>
+								<Label htmlFor={`difficulty-${level.value}`} className="text-sm">
+									{level.label}
+								</Label>
+							</div>
+						))}
+						{selectedDifficulties.length > 0 && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => {
+									setSelectedDifficulties([]);
+									setCurrentPage(1);
+								}}
+							>
+								Clear
+							</Button>
+						)}
+					</div>
+				</div>
 
-          {/* PAGINATION CONTROLS - BOTTOM */}
-          <PaginationControls />
-        </>
-      )}
+				{/* PAGINATION CONTROLS - TOP */}
+				<PaginationControls />
+
+				{/* TABLE - Displays paginated events */}
+				<Table>
+					<TableHeader>
+						<TableRow>
+							{/* Date column - sortable by date */}
+							<SortableTableHead column="date" className="w-[120px]">
+								Date
+							</SortableTableHead>
+							{/* Title column - NOT sortable per user request */}
+							<TableHead>Title</TableHead>
+							{/* Description column - NOT sortable per user request */}
+							<TableHead>Description</TableHead>
+							{/* Favorites column - sortable by favorite count */}
+							<SortableTableHead column="favorites" className="w-[80px] text-center">
+								Favorites
+							</SortableTableHead>
+							{/* Unresolved column - sortable by unresolved flag count */}
+							<SortableTableHead column="unresolved" className="w-[80px] text-center">
+								Unresolved
+							</SortableTableHead>
+							{/* Difficulty column - sortable by difficulty rating */}
+							<SortableTableHead column="difficulty" className="w-[80px] text-center">
+								Difficulty
+							</SortableTableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{paginatedEvents.map((event) => (
+							// Make entire row clickable to open edit page in new tab
+							<TableRow 
+								key={event._id}
+								onClick={() => window.open(`/admin/events/edit/${event._id}`, '_blank')}
+								className="cursor-pointer hover:bg-muted/50"
+							>
+								{/* Date column */}
+								<TableCell>
+									{event.date || event.dateBCE ? (
+										<span className="text-sm text-muted-foreground">
+											{/* {event.dateSortIndex} | 
+											{event.dateBCE} | 
+											{event.date} |  */}
+											{formatEventDateForDisplay(event)}
+										</span>
+									) : (
+										<span className="text-destructive">NO DATE</span>
+									)}
+								</TableCell>
+								
+								{/* Title column */}
+								<TableCell className="font-medium">
+									{event.title || event.name || event._id}
+								</TableCell>
+								
+								{/* Description column - truncated to prevent overflow */}
+								<TableCell className="max-w-[300px] truncate">
+									{event.description || "-"}
+								</TableCell>
+								
+								{/* Favorites column - shows count of favorite feedbacks */}
+								<TableCell className="text-center">
+									{getFavoriteCount(event) > 0 ? (
+										<div className="flex items-center justify-center gap-1">
+											<Heart className="w-4 h-4 fill-red-500 text-red-500" />
+											<span>{getFavoriteCount(event)}</span>
+										</div>
+									) : "-"}
+								</TableCell>
+								
+								{/* Unresolved column - shows count of unresolved flag feedbacks */}
+								<TableCell className="text-center">
+									{getUnresolvedFlagCount(event) > 0 ? (
+										<div className="flex items-center justify-center gap-1">
+											<Flag className="w-4 h-4 fill-amber-500 text-amber-500" />
+											<span>{getUnresolvedFlagCount(event)}</span>
+										</div>
+									) : "-"}
+								</TableCell>
+								
+								{/* Difficulty column */}
+								<TableCell className="text-center">
+									{event.difficulty ? DIFFICULTY_LABELS[event.difficulty as keyof typeof DIFFICULTY_LABELS] : "-"}
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+
+				{/* PAGINATION CONTROLS - BOTTOM */}
+				<PaginationControls />
+			</>
     </div>
   );
 }
