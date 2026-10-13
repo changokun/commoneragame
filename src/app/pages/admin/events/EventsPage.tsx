@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
-import { Loader2, Heart, Flag, MessageSquare, ChevronUp, ChevronDown, Download } from "lucide-react";
+import { Loader2, Heart, Flag, MessageSquare, ChevronUp, ChevronDown, Download, Upload } from "lucide-react";
 import { Event, Feedback } from "../../../types";
 import { formatEventDateForDisplay } from "../../../utils";
 import { adminFetch } from "../../../services/adminAuth";
-import { DIFFICULTY_LABELS } from "../../../constants";
+import { DIFFICULTY_LABELS, STATUS_LABELS } from "../../../constants";
 
 // Import Table components for structured data display
 import {
@@ -71,6 +71,10 @@ export function EventsPage() {
   // Empty array means all difficulties (no filtering)
   const [selectedDifficulties, setSelectedDifficulties] = useState<number[]>([]);
 
+  // Status filter state - array of selected status strings
+  // Empty array means all statuses (no filtering)
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+
   // Difficulty levels configuration for rendering checkboxes
   // Maps numeric difficulty values to display labels
   const DIFFICULTY_LEVELS = [
@@ -79,6 +83,14 @@ export function EventsPage() {
     { value: 3, label: 'Secondary' },
     { value: 4, label: 'University' },
     { value: 5, label: 'PhD' },
+  ];
+
+  // Status levels configuration for rendering checkboxes
+  // Maps status enum values to display labels
+  const STATUS_LEVELS = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'published', label: 'Published' },
   ];
 
   // ==========================================================================
@@ -205,10 +217,9 @@ export function EventsPage() {
   // ==========================================================================
 
   /**
-   * Filter events based on search query and difficulty selection
+   * Filter events based on search query, difficulty, and status selection
    * Uses regex for search if valid, falls back to simple string includes
-   * Filters where NEITHER title NOR description contains the search query
-   * Also filters by selected difficulty levels if any are selected
+   * Filters by selected difficulty levels and status values if any are selected
    */
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
@@ -232,9 +243,13 @@ export function EventsPage() {
       const matchesDifficulty = selectedDifficulties.length === 0 ||
         selectedDifficulties.includes(event.difficulty || 0);
       
-      return matchesSearch && matchesDifficulty;
+      // Status filter - if no statuses selected, always passes
+      const matchesStatus = selectedStatuses.length === 0 ||
+        selectedStatuses.includes(event.status || '');
+      
+      return matchesSearch && matchesDifficulty && matchesStatus;
     });
-  }, [events, searchQuery, selectedDifficulties]);
+  }, [events, searchQuery, selectedDifficulties, selectedStatuses]);
 
   // Calculate pagination derived values using useMemo for performance
   // Only recalculates when filteredEvents, currentPage, or itemsPerPage change
@@ -266,6 +281,7 @@ export function EventsPage() {
   /**
    * Get the sort value for an event based on the current sort column
    * Returns a comparable value for sorting
+   * For status: maps to numeric priority (published=0, pending=1, rejected=2) for sorting
    */
   const getSortValue = useCallback((event: Event): number | Date | null => {
     switch (sortBy) {
@@ -292,6 +308,15 @@ export function EventsPage() {
         return getFavoriteCount(event);
       case 'unresolved':
         return getUnresolvedFlagCount(event);
+      case 'status':
+        // Map status to numeric priority for consistent sorting
+        // published first (0), then pending (1), then rejected (2)
+        switch (event.status) {
+          case 'published': return 0;
+          case 'pending': return 1;
+          case 'rejected': return 2;
+          default: return 3; // unknown status - sort last
+        }
       default:
         return null;
     }
@@ -369,8 +394,12 @@ export function EventsPage() {
   }, []);
 
   // ==========================================================================
-  // DOWNLOAD LOGIC
+  // DOWNLOAD & UPLOAD LOGIC
   // ==========================================================================
+
+  // State for upload functionality
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<{ message: string; isError: boolean } | null>(null);
 
   /**
    * Handler for downloading filtered events as JSON file
@@ -400,6 +429,92 @@ export function EventsPage() {
     // Clean up object URL to free memory
     setTimeout(() => URL.revokeObjectURL(url), 100);
   }, [filteredEvents]);
+
+  /**
+   * Handler for file selection - stores the selected file in state
+   * Resets upload status when a new file is selected
+   */
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setUploadFile(e.target.files[0]);
+      setUploadStatus(null);
+    }
+  }, []);
+
+  /**
+   * Handler for uploading JSON file to the API
+   * Sends file as multipart/form-data to /admin/events/upload endpoint
+   * Validates JSON before sending, but sends the file itself via FormData
+   * Expects 204 on success or error messages on failure
+   */
+  const handleUpload = useCallback(async () => {
+    if (!uploadFile) {
+      setUploadStatus({ message: 'No file selected', isError: true });
+      return;
+    }
+
+    try {
+      // Validate JSON before sending
+      // Read file content and parse to ensure it's valid JSON array
+      const fileContent = await uploadFile.text();
+      let eventsData;
+      try {
+        eventsData = JSON.parse(fileContent);
+        if (!Array.isArray(eventsData)) {
+          throw new Error('JSON root should be an array of events');
+        }
+      } catch (parseError) {
+        setUploadStatus({ 
+          message: `Invalid JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
+          isError: true 
+        });
+        return;
+      }
+
+      // Create FormData and append the file
+      // Browser will automatically set Content-Type with boundary for multipart/form-data
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+
+      // Send to API endpoint using multipart/form-data
+      const response = await adminFetch('/admin/events/upload', {
+        method: 'POST',
+        // Do NOT set Content-Type header - browser will set it automatically
+        // with the correct boundary parameter for multipart/form-data
+        body: formData,
+      });
+
+      if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage = `Upload failed: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          // If can't parse error response, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        setUploadStatus({ message: errorMessage, isError: true });
+        return;
+      }
+
+      // Success - 204 No Content expected
+      setUploadStatus({ message: 'Upload successful (reload)', isError: false });
+      setUploadFile(null);
+      
+      // Clear the file input
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+    } catch (err) {
+      setUploadStatus({ 
+        message: `Upload error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        isError: true 
+      });
+    }
+  }, [uploadFile]);
 
   // ==========================================================================
   // SORTABLE TABLE HEADER COMPONENT
@@ -529,178 +644,261 @@ export function EventsPage() {
         <h1 className="text-3xl font-bold">Events</h1>
         <span className="text-muted-foreground">{totalCount} total</span>
       </div>
-			<>
-				{/* SEARCH INPUT - Filter by title or description */}
-				<div className="mb-4">
-					<div className="flex items-center gap-2">
-						<label htmlFor="search" className="text-sm font-medium whitespace-nowrap">
-							Search:
-						</label>
-						<Input
-							id="search"
-							type="text"
-							placeholder="Title or description (regex supported)"
-							value={searchQuery}
-							onChange={handleSearchChange}
-							className="w-[300px]"
-						/>
-						{searchQuery && (
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => {
-									setSearchQuery('');
-									setCurrentPage(1);
-								}}
-							>
-								Clear
-							</Button>
-						)}
-					</div>
+			{/* SEARCH INPUT - Filter by title or description */}
+			<div className="mb-4">
+				<div className="flex items-center gap-2">
+					<label htmlFor="search" className="text-sm font-medium whitespace-nowrap">
+						Search:
+					</label>
+					<Input
+						id="search"
+						type="text"
+						placeholder="Title or description (regex supported)"
+						value={searchQuery}
+						onChange={handleSearchChange}
+						className="w-[300px]"
+					/>
+					{searchQuery && (
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => {
+								setSearchQuery('');
+								setCurrentPage(1);
+							}}
+						>
+							Clear
+						</Button>
+					)}
 				</div>
+			</div>
 
-				{/* DIFFICULTY FILTER - Checkboxes for each difficulty level */}
-				<div className="mb-4">
-					<div className="flex items-center gap-2 flex-wrap">
-						<span className="text-sm font-medium whitespace-nowrap">Difficulty:</span>
-						{DIFFICULTY_LEVELS.map(level => (
-							<div key={level.value} className="flex items-center gap-1">
-								<Checkbox
-									id={`difficulty-${level.value}`}
-									checked={selectedDifficulties.includes(level.value)}
-									onCheckedChange={(checked) => {
-										if (checked) {
-											setSelectedDifficulties(prev => [...prev, level.value]);
-										} else {
-											setSelectedDifficulties(prev => prev.filter(d => d !== level.value));
-										}
-										setCurrentPage(1);
-									}}
-								/>
-								<Label htmlFor={`difficulty-${level.value}`} className="text-sm">
-									{level.label}
-								</Label>
-							</div>
-						))}
-						{selectedDifficulties.length > 0 && (
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => {
-									setSelectedDifficulties([]);
+			{/* DIFFICULTY FILTER - Checkboxes for each difficulty level */}
+			<div className="mb-4">
+				<div className="flex items-center gap-2 flex-wrap">
+					<span className="text-sm font-medium whitespace-nowrap">Difficulty:</span>
+					{DIFFICULTY_LEVELS.map(level => (
+						<div key={level.value} className="flex items-center gap-1">
+							<Checkbox
+								id={`difficulty-${level.value}`}
+								checked={selectedDifficulties.includes(level.value)}
+								onCheckedChange={(checked) => {
+									if (checked) {
+										setSelectedDifficulties(prev => [...prev, level.value]);
+									} else {
+										setSelectedDifficulties(prev => prev.filter(d => d !== level.value));
+									}
 									setCurrentPage(1);
 								}}
-							>
-								Clear
-							</Button>
-						)}
-						{/* DOWNLOAD BUTTON - Download all filtered events as JSON */}
+							/>
+							<Label htmlFor={`difficulty-${level.value}`} className="text-sm">
+								{level.label}
+							</Label>
+						</div>
+					))}
+					{selectedDifficulties.length > 0 && (
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => {
+								setSelectedDifficulties([]);
+								setCurrentPage(1);
+							}}
+						>
+							Clear
+						</Button>
+					)}
+				</div>
+			</div>
+
+			{/* STATUS FILTER - Checkboxes for each status */}
+			<div className="mb-4">
+				<div className="flex items-center gap-2 flex-wrap">
+					<span className="text-sm font-medium whitespace-nowrap">Status:</span>
+					{STATUS_LEVELS.map(status => (
+						<div key={status.value} className="flex items-center gap-1">
+							<Checkbox
+								id={`status-${status.value}`}
+								checked={selectedStatuses.includes(status.value)}
+								onCheckedChange={(checked) => {
+									if (checked) {
+										setSelectedStatuses(prev => [...prev, status.value]);
+									} else {
+										setSelectedStatuses(prev => prev.filter(s => s !== status.value));
+									}
+									setCurrentPage(1);
+								}}
+							/>
+							<Label htmlFor={`status-${status.value}`} className="text-sm">
+								{status.label}
+							</Label>
+						</div>
+					))}
+					{selectedStatuses.length > 0 && (
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => {
+								setSelectedStatuses([]);
+								setCurrentPage(1);
+							}}
+						>
+							Clear
+						</Button>
+					)}
+				</div>
+			</div>
+
+			{/* DOWNLOAD BUTTON - Download all filtered events as JSON */}
+			<Button
+				variant="outline"
+				size="sm"
+				onClick={handleDownload}
+				disabled={totalCount === 0}
+				className="ml-auto"
+			>
+				<Download className="w-4 h-4 mr-1" />
+				Download ({totalCount})
+			</Button>
+			
+			{/* UPLOAD BUTTON & FILE INPUT - Upload JSON file to create events for review */}
+			<div className="flex items-center gap-2">
+				<input
+					type="file"
+					id="file-upload"
+					accept=".json,application/json"
+					onChange={handleFileChange}
+					className="hidden"
+				/>
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={() => document.getElementById('file-upload')?.click()}
+				>
+					<Upload className="w-4 h-4 mr-1" />
+					Upload .json
+				</Button>
+				{uploadFile && (
+					<>
+						<span className="text-sm text-muted-foreground">
+							{uploadFile.name}
+						</span>
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={handleDownload}
-							disabled={totalCount === 0}
-							className="ml-auto"
+							onClick={handleUpload}
 						>
-							<Download className="w-4 h-4 mr-1" />
-							Download ({totalCount})
+							Send to API
 						</Button>
-					</div>
-				</div>
+					</>
+				)}
+				{uploadStatus && (
+					<span className={`text-sm ${uploadStatus.isError ? 'text-destructive' : 'text-green-500'}`}>
+						{uploadStatus.message}
+					</span>
+				)}
+			</div>
 
-				{/* PAGINATION CONTROLS - TOP */}
-				<PaginationControls />
+			{/* PAGINATION CONTROLS - TOP */}
+			<PaginationControls />
 
-				{/* TABLE - Displays paginated events */}
-				<Table>
-					<TableHeader>
-						<TableRow>
-							{/* Date column - sortable by date */}
-							<SortableTableHead column="date" className="w-[120px]">
-								Date
-							</SortableTableHead>
-							{/* Title column - NOT sortable per user request */}
-							<TableHead>Title</TableHead>
-							{/* Description column - NOT sortable per user request */}
-							<TableHead>Description</TableHead>
-							{/* Favorites column - sortable by favorite count */}
-							<SortableTableHead column="favorites" className="w-[80px] text-center">
-								Favorites
-							</SortableTableHead>
-							{/* Unresolved column - sortable by unresolved flag count */}
-							<SortableTableHead column="unresolved" className="w-[80px] text-center">
-								Unresolved
-							</SortableTableHead>
-							{/* Difficulty column - sortable by difficulty rating */}
-							<SortableTableHead column="difficulty" className="w-[80px] text-center">
-								Difficulty
-							</SortableTableHead>
+			{/* TABLE - Displays paginated events */}
+			<Table>
+				<TableHeader>
+					<TableRow>
+						{/* Date column - sortable by date */}
+						<SortableTableHead column="date" className="w-[120px]">
+							Date
+						</SortableTableHead>
+						{/* Title column - NOT sortable per user request */}
+						<TableHead>Title</TableHead>
+						{/* Description column - NOT sortable per user request */}
+						<TableHead>Description</TableHead>
+						{/* Favorites column - sortable by favorite count */}
+						<SortableTableHead column="favorites" className="w-[80px] text-center">
+							Favorites
+						</SortableTableHead>
+						{/* Unresolved column - sortable by unresolved flag count */}
+						<SortableTableHead column="unresolved" className="w-[80px] text-center">
+							Unresolved
+						</SortableTableHead>
+						{/* Difficulty column - sortable by difficulty rating */}
+						<SortableTableHead column="difficulty" className="w-[80px] text-center">
+							Difficulty
+						</SortableTableHead>
+						{/* Status column - sortable by status */}
+						<SortableTableHead column="status" className="w-[100px] text-center">
+							Status
+						</SortableTableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{paginatedEvents.map((event) => (
+						// Make entire row clickable to open edit page in new tab
+						<TableRow 
+							key={event._id}
+							onClick={() => window.open(`/admin/events/edit/${event._id}`, '_blank')}
+							className="cursor-pointer hover:bg-muted/50"
+						>
+							{/* Date column */}
+							<TableCell>
+								{event.date || event.dateBCE ? (
+									<span className="text-sm text-muted-foreground">
+										{/* {event.dateSortIndex} | 
+										{event.dateBCE} | 
+										{event.date} |  */}
+										{formatEventDateForDisplay(event)}
+									</span>
+								) : (
+									<span className="text-destructive">NO DATE</span>
+								)}
+							</TableCell>
+							
+							{/* Title column */}
+							<TableCell className="font-medium">
+								{event.title || event.name || event._id}
+							</TableCell>
+							
+							{/* Description column - truncated to prevent overflow */}
+							<TableCell className="max-w-[300px] truncate">
+								{event.description || "-"}
+							</TableCell>
+							
+							{/* Favorites column - shows count of favorite feedbacks */}
+							<TableCell className="text-center">
+								{getFavoriteCount(event) > 0 ? (
+									<div className="flex items-center justify-center gap-1">
+										<Heart className="w-4 h-4 fill-red-500 text-red-500" />
+										<span>{getFavoriteCount(event)}</span>
+									</div>
+								) : "-"}
+							</TableCell>
+							
+							{/* Unresolved column - shows count of unresolved flag feedbacks */}
+							<TableCell className="text-center">
+								{getUnresolvedFlagCount(event) > 0 ? (
+									<div className="flex items-center justify-center gap-1">
+										<Flag className="w-4 h-4 fill-amber-500 text-amber-500" />
+										<span>{getUnresolvedFlagCount(event)}</span>
+									</div>
+								) : "-"}
+							</TableCell>
+							
+							{/* Difficulty column */}
+							<TableCell className="text-center">
+								{event.difficulty ? DIFFICULTY_LABELS[event.difficulty as keyof typeof DIFFICULTY_LABELS] : "-"}
+							</TableCell>
+							{/* Status column */}
+							<TableCell className="text-center">
+								{event.status ? STATUS_LABELS[event.status as keyof typeof STATUS_LABELS] : "-"}
+							</TableCell>
 						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{paginatedEvents.map((event) => (
-							// Make entire row clickable to open edit page in new tab
-							<TableRow 
-								key={event._id}
-								onClick={() => window.open(`/admin/events/edit/${event._id}`, '_blank')}
-								className="cursor-pointer hover:bg-muted/50"
-							>
-								{/* Date column */}
-								<TableCell>
-									{event.date || event.dateBCE ? (
-										<span className="text-sm text-muted-foreground">
-											{/* {event.dateSortIndex} | 
-											{event.dateBCE} | 
-											{event.date} |  */}
-											{formatEventDateForDisplay(event)}
-										</span>
-									) : (
-										<span className="text-destructive">NO DATE</span>
-									)}
-								</TableCell>
-								
-								{/* Title column */}
-								<TableCell className="font-medium">
-									{event.title || event.name || event._id}
-								</TableCell>
-								
-								{/* Description column - truncated to prevent overflow */}
-								<TableCell className="max-w-[300px] truncate">
-									{event.description || "-"}
-								</TableCell>
-								
-								{/* Favorites column - shows count of favorite feedbacks */}
-								<TableCell className="text-center">
-									{getFavoriteCount(event) > 0 ? (
-										<div className="flex items-center justify-center gap-1">
-											<Heart className="w-4 h-4 fill-red-500 text-red-500" />
-											<span>{getFavoriteCount(event)}</span>
-										</div>
-									) : "-"}
-								</TableCell>
-								
-								{/* Unresolved column - shows count of unresolved flag feedbacks */}
-								<TableCell className="text-center">
-									{getUnresolvedFlagCount(event) > 0 ? (
-										<div className="flex items-center justify-center gap-1">
-											<Flag className="w-4 h-4 fill-amber-500 text-amber-500" />
-											<span>{getUnresolvedFlagCount(event)}</span>
-										</div>
-									) : "-"}
-								</TableCell>
-								
-								{/* Difficulty column */}
-								<TableCell className="text-center">
-									{event.difficulty ? DIFFICULTY_LABELS[event.difficulty as keyof typeof DIFFICULTY_LABELS] : "-"}
-								</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
+					))}
+				</TableBody>
+			</Table>
 
-				{/* PAGINATION CONTROLS - BOTTOM */}
-				<PaginationControls />
-			</>
+			{/* PAGINATION CONTROLS - BOTTOM */}
+			<PaginationControls />
     </div>
   );
 }

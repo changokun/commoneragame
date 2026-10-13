@@ -30,3 +30,11 @@ export const DIFFICULTY_LABELS = {
 	4: "University",
 	5: "PhD",
 };
+
+// Status labels for event review workflow
+// Maps event status enum values to human-readable display labels
+export const STATUS_LABELS = {
+	pending: "Pending",
+	rejected: "Rejected",
+	published: "Published",
+};

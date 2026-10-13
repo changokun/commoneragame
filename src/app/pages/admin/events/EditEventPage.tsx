@@ -10,7 +10,7 @@ import { Event, Feedback } from "../../../types";
 import { TagPicker, DatePicker, TimePicker } from 'rsuite';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { adminFetch } from "../../../services/adminAuth";
-import { DIFFICULTY_LABELS } from "../../../constants";
+import { DIFFICULTY_LABELS, STATUS_LABELS } from "../../../constants";
 
 
 interface TagOption {
@@ -69,6 +69,7 @@ export function EditEventPage() {
 		date: 'idle' | 'saving' | 'success' | 'error';
 		dateBCE: 'idle' | 'saving' | 'success' | 'error';
 		difficulty: 'idle' | 'saving' | 'success' | 'error';
+		status: 'idle' | 'saving' | 'success' | 'error';
 	}>({
 		title: 'idle',
 		description: 'idle',
@@ -77,6 +78,7 @@ export function EditEventPage() {
 		date: 'idle',
 		dateBCE: 'idle',
 		difficulty: 'idle',
+		status: 'idle',
 	});
 	
 	// Original values for change detection
@@ -88,6 +90,7 @@ export function EditEventPage() {
 		date: Date | null;  // Changed from string
 		dateBCE: number;
 		difficulty: number;
+		status: string;
 	}>({
 		title: '',
 		description: '',
@@ -95,7 +98,8 @@ export function EditEventPage() {
 		datePrecision: 'year',
 		date: null,
 		dateBCE: 0,
-		difficulty: 3
+		difficulty: 3,
+		status: ''
 	});
 
 	// State for rsuite TagPicker
@@ -140,6 +144,7 @@ export function EditEventPage() {
 					date: data.event.date || '',
 					dateBCE: data.event.dateBCE || 0,
 					difficulty: data.event.difficulty || 3,
+					status: data.event.status || '',
 				});
 				
 				// Pre-populate tagOptions with proper label/value pairs
@@ -166,7 +171,7 @@ export function EditEventPage() {
 	 * Save a single field to the API via PATCH
 	 * Only updates if the value has changed from the original
 	 */
-	const saveField = async (field: 'title' | 'description' | 'tags' | 'datePrecision' | 'date' | 'dateBCE', value: string | string[] | number | Date) => {
+	const saveField = async (field: 'title' | 'description' | 'tags' | 'datePrecision' | 'date' | 'dateBCE' | 'difficulty' | 'status', value: string | string[] | number | Date) => {
 		// Check if value actually changed (use JSON.stringify for array comparison)
 		const originalValue = originalValues[field];
 		const stringifiedValue = JSON.stringify(value);
@@ -226,6 +231,16 @@ export function EditEventPage() {
 	const handleDifficultyBlur = () => {
 		if (event) {
 			saveField('difficulty', event.difficulty);
+		}
+	};
+
+	/**
+	 * Handle status change - instantly saves the new status to API
+	 * Called when user clicks a status button
+	 */
+	const handleStatusChange = (newStatus: string) => {
+		if (event && event.status !== newStatus) {
+			saveField('status', newStatus);
 		}
 	};
 
@@ -546,6 +561,35 @@ export function EditEventPage() {
 			{/* Title */}
 			<h1 className="text-3xl font-bold">Edit Event</h1>
 			
+			{/* Status Action Buttons - Top row */}
+			<div className="flex gap-2">
+				<Button
+					variant="outline"
+					onClick={() => handleStatusChange('rejected')}
+					disabled={event?.status === 'rejected'}
+					className={`border-2 border-red-500 rounded-md ${!event?.status || event.status === 'pending' ? 'animate-pulse' : ''} ${event?.status === 'rejected' ? 'bg-red-500 text-white' : 'hover:bg-red-500 hover:text-white'}`}
+				>
+					{event?.status === 'rejected' ? 'Rejected' : 'Reject'}
+				</Button>
+				<Button
+					variant="outline"
+					onClick={() => handleStatusChange('pending')}
+					disabled={event?.status === 'pending'}
+					className={`border-2 border-amber-500 rounded-md ${event?.status === 'pending' ? 'bg-amber-500 text-white' : 'hover:bg-amber-500 hover:text-white'}`}
+				>
+					{event?.status === 'pending' ? 'Pending' : 'Pending'}
+				</Button>
+				<Button
+					variant="outline"
+					onClick={() => handleStatusChange('published')}
+					disabled={event?.status === 'published'}
+					className={`border-2 border-green-500 rounded-md ${!event?.status || event.status === 'pending' ? 'animate-pulse' : ''} ${event?.status === 'published' ? 'bg-green-500 text-white' : 'hover:bg-green-500 hover:text-white'}`}
+				>
+					{event?.status === 'published' ? 'Published' : 'Publish'}
+				</Button>
+			</div>
+			
+		
 			{/* Form Card */}
 			<Card className="p-6 space-y-4">
 
@@ -712,6 +756,34 @@ export function EditEventPage() {
 				)}
 
 			</Card>
+
+			{/* Status Action Buttons - Bottom row (repeated for convenience) */}
+			<div className="flex gap-2">
+				<Button
+					variant="outline"
+					onClick={() => handleStatusChange('rejected')}
+					disabled={event?.status === 'rejected'}
+					className={`border-2 border-red-500 rounded-md ${!event?.status || event.status === 'pending' ? 'animate-pulse' : ''} ${event?.status === 'rejected' ? 'bg-red-500 text-white' : 'hover:bg-red-500 hover:text-white'}`}
+				>
+					{event?.status === 'rejected' ? 'Rejected' : 'Reject'}
+				</Button>
+				<Button
+					variant="outline"
+					onClick={() => handleStatusChange('pending')}
+					disabled={event?.status === 'pending'}
+					className={`border-2 border-amber-500 rounded-md ${event?.status === 'pending' ? 'bg-amber-500 text-white' : 'hover:bg-amber-500 hover:text-white'}`}
+				>
+					{event?.status === 'pending' ? 'Pending' : 'Pending'}
+				</Button>
+				<Button
+					variant="outline"
+					onClick={() => handleStatusChange('published')}
+					disabled={event?.status === 'published'}
+					className={`border-2 border-green-500 rounded-md ${!event?.status || event.status === 'pending' ? 'animate-pulse' : ''} ${event?.status === 'published' ? 'bg-green-500 text-white' : 'hover:bg-green-500 hover:text-white'}`}
+				>
+					{event?.status === 'published' ? 'Published' : 'Publish'}
+				</Button>
+			</div>
 
 			{/* ======================================================================== */}
 			{/* FEEDBACK SECTION - Display all feedbacks for this event */}

@@ -122,6 +122,7 @@ export interface Event {
 	difficulty?: number; // 1-5
   sources?: string[]; // Array of source URLs
 	dateSortIndex?: number; // Calculated timestamp for sorting, not persisted
+  status?: 'pending' | 'rejected' | 'published'; // Review workflow status
 
 }
 
