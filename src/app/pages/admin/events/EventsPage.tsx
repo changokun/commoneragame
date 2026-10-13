@@ -99,6 +99,24 @@ export function EventsPage() {
   }, []);
 
   /**
+   * Get the count of favorite feedbacks for an event
+   * Counts all favorite type feedbacks regardless of resolved status
+   */
+  const getFavoriteCount = useCallback((event: Event) => {
+    if (!event.feedbacks) return 0;
+    return event.feedbacks.filter((f: Feedback) => f.type === 'favorite').length;
+  }, []);
+
+  /**
+   * Get the count of unresolved flag feedbacks for an event
+   * Counts only flag type feedbacks that are not yet resolved
+   */
+  const getUnresolvedFlagCount = useCallback((event: Event) => {
+    if (!event.feedbacks) return 0;
+    return event.feedbacks.filter((f: Feedback) => f.type === 'flag' && !f.isResolved).length;
+  }, []);
+
+  /**
    * Render feedback pills for unresolved feedbacks for a single event
    * Shows icon + count for each feedback type with unresolved items
    */
@@ -299,9 +317,9 @@ export function EventsPage() {
                     <TableHead className="w-[120px]">Date</TableHead>
                     <TableHead>Title</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead className="w-[150px]">Tags</TableHead>
+                    <TableHead className="w-[80px] text-center">Favorites</TableHead>
+                    <TableHead className="w-[80px] text-center">Unresolved</TableHead>
                     <TableHead className="w-[80px] text-center">Difficulty</TableHead>
-                    <TableHead className="w-[150px]">Feedbacks</TableHead>
                     <TableHead className="w-[80px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -329,19 +347,29 @@ export function EventsPage() {
                         {event.description || "-"}
                       </TableCell>
                       
-                      {/* Tags column */}
-                      <TableCell>
-                        {event.tags?.length ? event.tags.join(", ") : "-"}
+                      {/* Favorites column - shows count of favorite feedbacks */}
+                      <TableCell className="text-center">
+                        {getFavoriteCount(event) > 0 ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <Heart className="w-4 h-4 fill-red-500 text-red-500" />
+                            <span>{getFavoriteCount(event)}</span>
+                          </div>
+                        ) : "-"}
+                      </TableCell>
+                      
+                      {/* Unresolved column - shows count of unresolved flag feedbacks */}
+                      <TableCell className="text-center">
+                        {getUnresolvedFlagCount(event) > 0 ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <Flag className="w-4 h-4 fill-amber-500 text-amber-500" />
+                            <span>{getUnresolvedFlagCount(event)}</span>
+                          </div>
+                        ) : "-"}
                       </TableCell>
                       
                       {/* Difficulty column */}
                       <TableCell className="text-center">
                         {event.difficulty ? `${event.difficulty}/5` : "-"}
-                      </TableCell>
-                      
-                      {/* Feedbacks column */}
-                      <TableCell>
-                        {renderFeedbackPills(event)}
                       </TableCell>
                       
                       {/* Actions column */}
