@@ -12,7 +12,7 @@ import { Badge } from "../components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../components/ui/tooltip";
 import { ensureAuth, getToken } from "../services/auth";
 import { createSimpleGame, incrementGamesCreatedCount } from "../services/game";
-import { GAMES_CREATED_COUNT_KEY, CURRENT_GAME_KEY } from "../constants";
+import { GAMES_CREATED_COUNT_KEY, CURRENT_GAME_KEY, DIFFICULTY_LABELS } from "../constants";
 import { ResumeGameButton } from "../components/ResumeGameButton";
 import { Preset } from "../types";
 
@@ -49,15 +49,6 @@ const TIME_SUFFIX_OPTIONS = [
 	"BCE",
 	"CE",
 ];
-
-// Difficulty level labels
-const DIFFICULTY_LABELS = {
-	1: "Easy",
-	2: "Elementary",
-	3: "Secondary",
-	4: "University",
-	5: "PhD",
-};
 
 /**
  * CompositeDateInput - A component that combines a numeric input with a time suffix dropdown

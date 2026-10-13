@@ -4,6 +4,7 @@ import { Loader2, Heart, Flag, MessageSquare, ChevronUp, ChevronDown } from "luc
 import { Event, Feedback } from "../../../types";
 import { formatEventDateForDisplay } from "../../../utils";
 import { adminFetch } from "../../../services/adminAuth";
+import { DIFFICULTY_LABELS } from "../../../constants";
 
 // Import Table components for structured data display
 import {
@@ -516,7 +517,7 @@ export function EventsPage() {
                   
                   {/* Difficulty column */}
                   <TableCell className="text-center">
-                    {event.difficulty ? `${event.difficulty}/5` : "-"}
+                    {event.difficulty ? DIFFICULTY_LABELS[event.difficulty as keyof typeof DIFFICULTY_LABELS] : "-"}
                   </TableCell>
                 </TableRow>
               ))}

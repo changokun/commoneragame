@@ -20,3 +20,13 @@ export const CURRENT_GAME_KEY = "CE-currentGameId";
 // Storage key for tracking how many games the user has created
 // Used to simplify the UI for new users (first-time experience)
 export const GAMES_CREATED_COUNT_KEY = "ce-numberOfGamesCreated";
+
+// Difficulty level labels for events
+// Used to display human-readable difficulty levels instead of numeric values
+export const DIFFICULTY_LABELS = {
+	1: "Easy",
+	2: "Elementary",
+	3: "Secondary",
+	4: "University",
+	5: "PhD",
+};

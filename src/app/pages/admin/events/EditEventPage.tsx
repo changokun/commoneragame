@@ -10,6 +10,7 @@ import { Event, Feedback } from "../../../types";
 import { TagPicker, DatePicker, TimePicker } from 'rsuite';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { adminFetch } from "../../../services/adminAuth";
+import { DIFFICULTY_LABELS } from "../../../constants";
 
 
 interface TagOption {
@@ -29,14 +30,6 @@ const DATE_PRECISION_OPTIONS = [
 	{ value: "millennium", label: "Millennium" },
 	{ value: "million-years", label: "Million Years" },
 	{ value: "exact", label: "Exact" }
-];
-
-const DIFFICULTY_OPTIONS = [
-  { value: "1", label: "Primary/Elementary" },
-  { value: "2", label: "Intermediate" },
-  { value: "3", label: "Secondary/High School" },
-  { value: "4", label: "University" },
-  { value: "5", label: "PhD" }
 ];
 
 /**
@@ -660,9 +653,9 @@ export function EditEventPage() {
 							<SelectValue placeholder="Select difficulty" />
 						</SelectTrigger>
 						<SelectContent>
-							{DIFFICULTY_OPTIONS.map((option) => (
-								<SelectItem key={option.value} value={option.value}>
-									{option.label}
+							{Object.entries(DIFFICULTY_LABELS).map(([value, label]) => (
+								<SelectItem key={value} value={value}>
+									{label}
 								</SelectItem>
 							))}
 						</SelectContent>
