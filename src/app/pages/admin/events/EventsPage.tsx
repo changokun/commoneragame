@@ -95,7 +95,7 @@ export function EventsPage() {
         if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
         const data = await response.json();
         setEvents(data.events);
-        console.log('one', data.events[1]);
+        // console.log('one', data.events[1]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
         console.error('Failed to fetch events:', err);
