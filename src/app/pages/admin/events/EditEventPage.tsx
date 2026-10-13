@@ -695,17 +695,25 @@ export function EditEventPage() {
 					<div className="space-y-2 pt-4 border-t border-border">
 						<Label>Sources</Label>
 						<div className="flex flex-wrap gap-2">
-							{event.sources.map((source, index) => (
-								<a
-									key={index}
-									href={source}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="text-primary underline hover:text-primary/80"
-								>
-									{source}
-								</a>
-							))}
+							{event.sources.map((source, index) => {
+								const isUrl = typeof source === 'string' && /^https?:\/\//i.test(source);
+
+								return isUrl ? (
+									<a
+										key={index}
+										href={source}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="text-primary underline hover:text-primary/80"
+									>
+										{source}
+									</a>
+								) : (
+									<span key={index} className="text-muted-foreground">
+										{source}
+									</span>
+								);
+							})}
 						</div>
 					</div>
 				)}
