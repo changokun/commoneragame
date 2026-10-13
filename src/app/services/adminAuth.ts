@@ -11,7 +11,6 @@
  */
 
 const ADMIN_TOKEN_KEY = 'CE-Admin-Token';
-const ADMIN_USER_KEY = 'CE-Admin-User';
 
 /**
  * Interface for admin user data returned from the backend
@@ -48,20 +47,6 @@ export const getAdminToken = (): string | null => {
 };
 
 /**
- * Get the stored admin user data from localStorage
- * @returns The admin user object, or null if not found
- */
-export const getAdminUser = (): AdminUser | null => {
-  const userJson = localStorage.getItem(ADMIN_USER_KEY);
-  if (!userJson) return null;
-  try {
-    return JSON.parse(userJson) as AdminUser;
-  } catch {
-    return null;
-  }
-};
-
-/**
  * Check if there is a stored admin token (synchronous check, no API call)
  * @returns true if admin token exists, false otherwise
  */
@@ -76,7 +61,6 @@ export const hasAdminToken = (): boolean => {
  */
 export const setAdminAuth = (token: string, user: AdminUser) => {
   localStorage.setItem(ADMIN_TOKEN_KEY, token);
-  localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(user));
 };
 
 /**
@@ -84,7 +68,6 @@ export const setAdminAuth = (token: string, user: AdminUser) => {
  */
 export const clearAdminAuth = () => {
   localStorage.removeItem(ADMIN_TOKEN_KEY);
-  localStorage.removeItem(ADMIN_USER_KEY);
 };
 
 /**
@@ -148,8 +131,8 @@ export const checkAdminStatus = async (): Promise<boolean> => {
  * @returns Promise resolving to the admin user data on success
  * @throws Error if login fails
  */
-export const loginAdmin = async (username: string, password: string): Promise<AdminUser> => {
-  const apiUrl = new URL(getApiUrl()).origin;
+export const loginAdmin = async (username: string, password: string) => {
+  const apiUrl = new URL(getApiUrl()).origin; // admin login is game-agnostic
   const response = await fetch(`${apiUrl}/admin/login`, {
     method: 'POST',
     headers: {
@@ -168,9 +151,7 @@ export const loginAdmin = async (username: string, password: string): Promise<Ad
   const data: AdminLoginResponse = await response.json();
   
   // Store the admin authentication data
-  setAdminAuth(data.token, data.user);
-  
-  return data.user;
+  setAdminAuth(data.token);
 };
 
 /**
